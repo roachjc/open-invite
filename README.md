@@ -1,5 +1,89 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
+# Open Invite
 
-# open invite
+Share what you're doing, see what your friends are up to, and join them. Plans have participants and no owner.
 
-Created in [T3 Code](https://t3.codes).
+## Run locally
+
+Requires Node.js 22.13 or newer and npm. This machine has Node.js 26.
+
+```sh
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. No accounts, API keys, or Docker are required for the local preview. The app seeds six fictional friends and five upcoming plans. All phone numbers are fictional.
+
+The local database lives in `.data/open-invite.sqlite`, which Git ignores. Plans, participation, messages, drafts, and notification previews survive page reloads and server restarts. The sidebar's reset button restores the samples after confirmation.
+
+## Preview from your phone
+
+Run the dev server as above. It listens on all network interfaces. Put the machine's private hostname or Tailscale IP in `.env.local` before opening it from your phone:
+
+```dotenv
+OPEN_INVITE_DEV_HOSTS=100.84.11.49
+```
+
+Then open `http://100.84.11.49:3000` while connected to Tailscale. Use this machine's current address if it changes. Next.js restricts development scripts to known origins, so an unlisted address can show the loading screen without starting the app. List only the hosts you use, separated by commas. Do not add a wildcard.
+
+## Try it
+
+- Browse upcoming plans, this weekend, or plans you're attending. Filter by whether kids are coming.
+- Open a plan and join. All participants can edit it. Leave without cancelling the plan for the others.
+- Share a plan through the form. What, who, where, and when are required.
+- Open **Try a text**, send an example, and answer a follow-up if a required detail is missing.
+- Switch the preview identity in the desktop sidebar to see other friends' notifications and participation. This switch is a development convenience, not authentication.
+- Find sample phone numbers under **Our circle** or on a plan. The app links to your device's SMS application and does not relay conversations.
+
+Without an API key, the text simulator uses a deliberately limited parser. It handles the supplied examples, times such as `tomorrow at noon` and `in 30 minutes`, explicit with-kids or no-kids descriptions, and simple follow-ups. It does not understand arbitrary natural language.
+
+To try real extraction, copy `.env.example` to `.env.local`, set `OPENAI_API_KEY` privately, and restart the server. The server uses GPT-5.4 mini with Structured Outputs. It never sends an SMS. The account can incur API charges when you use the text simulator.
+
+## Product rules
+
+- Plans have two kids flags, **No kids** and **With kids**. Everyone is welcome on either kind of outing. The flag describes whether children are coming, not who may join.
+- One circle, shared by everyone. Joining a plan never changes its audience.
+- No owner, host badge, approval to join, or response requirement.
+- All current participants can edit. Optimistic version checks prevent stale edits from overwriting changes.
+- New plans create a notification preview for every other circle member. Joining, leaving, and edits create previews for the other participants.
+- Missing end times resolve to midnight following the start date in the plan's time zone, including daylight-saving changes.
+- A plan disappears from the active board after it ends. If the last participant leaves, it is withdrawn.
+- Original messages and unfinished drafts stay separate from published plans. A follow-up does not publish until the four required fields are present.
+
+## Checks
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npx playwright install chromium
+npm run test:e2e
+npm run build
+```
+
+The unit tests cover plan rules, draft conversations, webhook-style replay, and permissions. Hosted schema tests use PGlite, an embedded PostgreSQL, with a small Supabase auth stub. They exercise the actual migration and its row-level policies without Docker. Browser tests run a separate production-preview server on port 3100, using an isolated database in `.data/e2e`. They exercise creation, persistence, shared edits, joining, leaving, notifications, text follow-ups, and mobile layout against that isolated server. They reset only their own sample data.
+
+## Architecture
+
+- `src/app`: Next.js pages and HTTP endpoints.
+- `src/components/open-invite.tsx`: browsing, plan details, forms, circle directory, text simulator, and notification previews.
+- `src/lib/plans.ts`: validation, end-time rules, and notification descriptions.
+- `src/lib/server/database.ts`: local SQLite persistence and plan operations.
+- `src/lib/server/extraction.ts`: example parser and optional OpenAI extraction.
+- `src/lib/server/messages.ts`: draft follow-ups, per-person serialization, and message deduplication.
+- `supabase/migrations`: the hosted PostgreSQL schema, membership policies, and transactional plan mutations.
+
+## What is not connected yet
+
+This is a working local preview. It is not a hosted service ready for real friends' data.
+
+The app still uses local SQLite and development identities. The Supabase migration is prepared and tested, but its hosted adapter, phone authentication, initial-circle import, and durable notification workers are not connected. The Twilio integration has request-validation and guarded sending primitives, but the webhook deliberately returns 503 and nothing dispatches notifications. No live SMS can leave the running preview.
+
+The eventual hosted stack remains Vercel, Supabase, Twilio, and OpenAI. Vercel's ephemeral filesystem cannot host this SQLite database. Connect hosted persistence and authentication before deployment. Provisioning those accounts and registering an SMS sender are separate setup tasks.
+
+Production requests fail closed unless `OPEN_INVITE_LOCAL_DEMO=true` is explicitly set. That flag is only for previewing a production build locally. It provides no authentication and must not be used for a public deployment.
+
+People can coordinate by texting directly. Multiple circles, automatic matching, group chat, bookings, and invitations to join the circle are outside this first version.
+
+## QC and production setup
+
+See [the setup checklist](docs/SETUP.md) for the accounts, credentials, separate resources, and implementation work needed before the service can go live. Use `.env.qc.example` and `.env.production.example` as blank templates. They contain no credentials and do not enable hosted mode on their own.
