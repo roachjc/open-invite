@@ -20,10 +20,10 @@ The local database lives in `.data/open-invite.sqlite`, which Git ignores. Plans
 Run the dev server as above. It listens on all network interfaces. Put the machine's private hostname or Tailscale IP in `.env.local` before opening it from your phone:
 
 ```dotenv
-OPEN_INVITE_DEV_HOSTS=100.84.11.49
+OPEN_INVITE_DEV_HOSTS=YOUR_TAILSCALE_IP
 ```
 
-Then open `http://100.84.11.49:3000` while connected to Tailscale. Use this machine's current address if it changes. Next.js restricts development scripts to known origins, so an unlisted address can show the loading screen without starting the app. List only the hosts you use, separated by commas. Do not add a wildcard.
+Then open `http://YOUR_TAILSCALE_IP:3000` while connected to Tailscale. Replace `YOUR_TAILSCALE_IP` with your device's current Tailscale address. Next.js restricts development scripts to known origins, so an unlisted address can show the loading screen without starting the app. List only the hosts you use, separated by commas. Do not add a wildcard.
 
 ## Try it
 

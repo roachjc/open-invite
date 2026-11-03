@@ -22,7 +22,6 @@ Supabase supports separate environments and versioned deployments. Vercel separa
 
 - Choose the owning GitHub account or organization and repository name. A private repository is a sensible default.
 - Authenticate the local GitHub CLI to the intended account using `gh auth login`. Alternatively, provide repository access through an appropriate connected account and configure Git push access separately.
-- The CLI is currently signed out and this checkout has no remote. The connected GitHub plugin identifies as `jroach_fancom`; confirm that this work account is the intended destination before using it.
 - Enable repository access for Vercel's GitHub integration and GitHub Actions.
 
 No GitHub token belongs in the application's environment variables. An interactive CLI login and the GitHub integration are enough for normal pushes and deployments.
