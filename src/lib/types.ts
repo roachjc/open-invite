@@ -46,7 +46,11 @@ export type Notice = {
   kind: "new" | "change" | "joined" | "left";
   status: "preview";
 };
+export type NotificationPreferences = {
+  enabled: boolean;
+};
 export type AppState = {
+  notificationPreferences: NotificationPreferences;
   people: Person[];
   plans: Plan[];
   messages: Message[];

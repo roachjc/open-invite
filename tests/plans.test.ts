@@ -237,6 +237,34 @@ describe("age groups", () => {
   );
 });
 
+describe("notification preferences", () => {
+  it("defaults on and suppresses every plan notification while off without changing participation", () => {
+    const db = store();
+    expect(db.notificationPreferences("eric")).toEqual({ enabled: true });
+    db.setNotificationPreferences("eric", { enabled: false });
+    const plan = db.create("jon", input());
+    db.participate("eric", plan.id, true);
+    const joined = db.plan(plan.id);
+    db.edit("jon", plan.id, joined.version, input({ place: "Another trail" }));
+    db.participate("jon", plan.id, false);
+    expect(db.plan(plan.id).participants).toEqual(["eric"]);
+    expect(
+      db.rows<Notice>("notices").filter((n) => n.recipientId === "eric"),
+    ).toEqual([]);
+    expect(
+      db.rows<Notice>("notices").some((n) => n.recipientId === "tim"),
+    ).toBe(true);
+    db.setNotificationPreferences("eric", { enabled: true });
+    db.create("jon", input());
+    expect(
+      db.rows<Notice>("notices").filter((n) => n.recipientId === "eric"),
+    ).toHaveLength(1);
+    expect(() =>
+      db.setNotificationPreferences("stranger", { enabled: false }),
+    ).toThrow("not in");
+  });
+});
+
 it("defaults new drafts to adults and retains or replaces explicit age groups on follow-up", () => {
   const adultDraft = mergePlanDraft({}, { activity: "Mountain biking" }, zone);
   expect(adultDraft.ageGroups).toEqual(["adults"]);

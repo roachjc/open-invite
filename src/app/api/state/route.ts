@@ -11,6 +11,7 @@ export async function GET() {
     return NextResponse.json(
       {
         currentPersonId,
+        notificationPreferences: store.notificationPreferences(currentPersonId),
         circleName: "The usual people",
         timezone: TIMEZONE,
         people: store.rows<Person>("people"),

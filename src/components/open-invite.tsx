@@ -1089,6 +1089,37 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
 
             {view === "notifications" && (
               <section className="notification-list">
+                <div className="notification-settings">
+                  <div>
+                    <h2>Text notifications</h2>
+                    <p id="notification-setting-description">
+                      New plans and updates to plans you&apos;ve joined. You can
+                      still browse, share, and join plans when texts are off.
+                      This preview does not send real texts.
+                    </p>
+                  </div>
+                  <label className="notification-toggle">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      aria-label="Text notifications"
+                      aria-describedby="notification-setting-description"
+                      checked={state.notificationPreferences.enabled}
+                      disabled={busy}
+                      onChange={(event) => {
+                        const enabled = event.target.checked;
+                        void action(
+                          "/api/notification-preferences",
+                          { enabled },
+                          enabled
+                            ? "Text notifications turned on."
+                            : "Text notifications turned off.",
+                        );
+                      }}
+                    />
+                    {state.notificationPreferences.enabled ? "On" : "Off"}
+                  </label>
+                </div>
                 {!state.notices.length ? (
                   <div className="empty-state">
                     <Bell size={32} strokeWidth={1.2} />

@@ -9,6 +9,7 @@ import type {
   PlanDraft,
   Message,
   Notice,
+  NotificationPreferences,
 } from "../types";
 import { normalizePlan, planDescription } from "../plans";
 
@@ -34,6 +35,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS notices (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS drafts (person_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS notification_preferences (person_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, payload TEXT NOT NULL);`);
     // Convert old attendance flags without resetting existing plans or drafts.
     this.transaction(() => {
@@ -106,6 +108,25 @@ export class Store {
     this.put("messages", msg);
     return msg;
   }
+  notificationPreferences(personId: string): NotificationPreferences {
+    this.person(personId);
+    const row = this.db
+      .prepare("SELECT payload FROM notification_preferences WHERE person_id=?")
+      .get(personId) as Row | undefined;
+    return row ? JSON.parse(row.payload) : { enabled: true };
+  }
+  setNotificationPreferences(
+    personId: string,
+    preferences: NotificationPreferences,
+  ) {
+    this.person(personId);
+    this.db
+      .prepare(
+        "INSERT INTO notification_preferences(person_id,payload) VALUES (?,?) ON CONFLICT(person_id) DO UPDATE SET payload=excluded.payload",
+      )
+      .run(personId, JSON.stringify(preferences));
+    return preferences;
+  }
   notify(
     plan: Plan,
     recipientIds: string[],
@@ -113,6 +134,7 @@ export class Store {
     prefix = "",
   ) {
     for (const recipientId of [...new Set(recipientIds)]) {
+      if (!this.notificationPreferences(recipientId).enabled) continue;
       const notice: Notice = {
         id: randomUUID(),
         recipientId,
@@ -414,6 +436,7 @@ export class Store {
         "notices",
         "drafts",
         "receipts",
+        "notification_preferences",
       ])
         this.db.exec(`DELETE FROM ${table}`);
       this.seed();

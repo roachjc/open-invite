@@ -1821,3 +1821,35 @@ ol {
   width: auto;
   accent-color: var(--green);
 }
+
+
+.notification-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.notification-settings h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+.notification-settings p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.notification-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.notification-toggle input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--green);
+}

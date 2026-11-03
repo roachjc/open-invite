@@ -45,6 +45,7 @@ To try real extraction, copy `.env.example` to `.env.local`, set `OPENAI_API_KEY
 - No owner, host badge, approval to join, or response requirement.
 - All current participants can edit. Optimistic version checks prevent stale edits from overwriting changes.
 - New plans create a notification preview for every other circle member. Joining, leaving, and edits create previews for the other participants.
+- Each person can turn text notifications on or off under **Notifications**. The setting defaults to on and persists across restarts. Off suppresses new plan announcements and participant updates, without changing membership or participation. Existing previews remain visible; turning notifications back on does not replay missed notices. Preferences are stored separately from circle contacts so activity filters can be added later.
 - Missing end times resolve to midnight following the start date in the plan's time zone, including daylight-saving changes.
 - A plan disappears from the active board after it ends. If the last participant leaves, it is withdrawn.
 - Original messages and unfinished drafts stay separate from published plans. A follow-up does not publish until the four required fields are present.

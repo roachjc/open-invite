@@ -53,6 +53,12 @@ beforeAll(async () => {
     readFileSync("supabase/migrations/20261027000000_kids_context.sql", "utf8"),
   );
   await db.exec(
+    readFileSync(
+      "supabase/migrations/20261030000000_notification_preferences.sql",
+      "utf8",
+    ),
+  );
+  await db.exec(
     readFileSync("supabase/migrations/20261030000001_age_groups.sql", "utf8"),
   );
   await db.exec(`insert into auth.users values ('${jon}'),('${eric}'),('${stranger}');
@@ -156,4 +162,35 @@ describe("hosted database permissions and transactions", () => {
       db.query("select * from public.incoming_messages"),
     ).rejects.toThrow("permission denied");
   });
+});
+
+it("keeps preferences private and suppresses notifications until re-enabled", async () => {
+  await as(eric);
+  await db.query(
+    "insert into public.notification_preferences(person_id,enabled) values ($1,false)",
+    [eric],
+  );
+  await as(jon);
+  expect(
+    (await db.query("select * from public.notification_preferences")).rows,
+  ).toHaveLength(0);
+  expect(
+    (
+      await db.query(
+        "update public.notification_preferences set enabled=true returning *",
+      )
+    ).rows,
+  ).toHaveLength(0);
+  await share();
+  await as(eric);
+  expect(
+    (await db.query("select * from public.notification_deliveries")).rows,
+  ).toHaveLength(0);
+  await db.exec("update public.notification_preferences set enabled=true");
+  await as(jon);
+  await share();
+  await as(eric);
+  expect(
+    (await db.query("select * from public.notification_deliveries")).rows,
+  ).toHaveLength(1);
 });

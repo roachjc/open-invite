@@ -135,3 +135,59 @@ test("mobile browsing fits the screen and supports joining", async ({
     page.getByRole("heading", { name: "The usual people.", exact: true }),
   ).toBeVisible();
 });
+
+test("notification switch persists per person and controls new previews", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Notifications/ }).click();
+  const toggle = page.getByRole("switch", { name: "Text notifications" });
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await page.reload();
+  await page.getByRole("button", { name: /Notifications/ }).click();
+  await expect(toggle).not.toBeChecked();
+  const details = {
+    activity: "Mountain biking",
+    category: "bike",
+    ageGroups: ["adults"],
+    attendeeDetail: "",
+    place: "Chickity",
+    startsAt: DateTime.now().plus({ days: 2 }).toISO(),
+    endsAt: null,
+    timezone: "America/Los_Angeles",
+    note: "",
+  };
+  await request.post("/api/demo/identity", { data: { personId: "eric" } });
+  expect((await request.get("/api/state")).ok()).toBe(true);
+  expect((await request.post("/api/plans", { data: details })).ok()).toBe(true);
+  await request.post("/api/demo/identity", { data: { personId: "jon" } });
+  const muted = await (await request.get("/api/state")).json();
+  expect(muted.notices).toHaveLength(0);
+  expect(muted.notificationPreferences.enabled).toBe(false);
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+  await request.post("/api/demo/identity", { data: { personId: "eric" } });
+  const eric = await (await request.get("/api/state")).json();
+  expect(eric.notificationPreferences.enabled).toBe(true);
+  expect((await request.post("/api/plans", { data: details })).ok()).toBe(true);
+  await request.post("/api/demo/identity", { data: { personId: "jon" } });
+  const active = await (await request.get("/api/state")).json();
+  expect(active.notices).toHaveLength(1);
+  expect(
+    (
+      await request.post("/api/notification-preferences", {
+        data: { enabled: "false" },
+      })
+    ).status(),
+  ).toBe(400);
+  expect(
+    (
+      await request.post("/api/notification-preferences", {
+        data: { enabled: false, personId: "eric" },
+      })
+    ).status(),
+  ).toBe(400);
+});
