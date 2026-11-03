@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DateTime } from "luxon";
 import { Store } from "@/lib/server/database";
-import { normalizePlan } from "@/lib/plans";
+import { normalizePlan, mergePlanDraft } from "@/lib/plans";
 import { parseExample } from "@/lib/server/extraction";
 import { processMessage } from "@/lib/server/messages";
 import type { PlanInput, Notice, Plan } from "@/lib/types";
@@ -11,8 +11,8 @@ function input(overrides: Partial<PlanInput> = {}): PlanInput {
   return {
     activity: "Mountain biking",
     category: "bike",
-    company: "no_kids",
-    companyDetail: "",
+    ageGroups: ["adults"],
+    attendeeDetail: "",
     place: "Chickity",
     startsAt: DateTime.now().plus({ days: 2 }).toISO()!,
     endsAt: null,
@@ -39,7 +39,9 @@ describe("plan rules", () => {
     expect(plan.endWasDefault).toBe(true);
   });
   it("does not assume a company type and rejects end before start", () => {
-    expect(() => normalizePlan({ ...input(), company: undefined })).toThrow();
+    expect(
+      normalizePlan({ ...input(), ageGroups: undefined }).ageGroups,
+    ).toEqual(["adults"]);
     expect(() =>
       normalizePlan(
         input({
@@ -100,13 +102,13 @@ describe("text posting", () => {
   const now = DateTime.fromISO("2026-10-26T10:00:00", { zone });
   const offline = async (text: string, ref: DateTime) =>
     parseExample(text, ref);
-  it("extracts each supplied field and asks for company instead of guessing that no children are coming", () => {
+  it("extracts supplied fields and leaves age-group defaults to draft merging", () => {
     const result = parseExample(
       "Mountain biking at Chickity in 30 minutes for two hours",
       now,
     );
     expect(result.place).toBe("Chickity");
-    expect(result.company).toBeUndefined();
+    expect(result.ageGroups).toBeUndefined();
     expect(result.startsAt).toBe("2026-10-26T17:30:00.000Z");
     expect(result.endsAt).toBe("2026-10-26T19:30:00.000Z");
   });
@@ -116,18 +118,19 @@ describe("text posting", () => {
     const draft = await processMessage(
       db,
       "jon",
-      "Mountain biking at Chickity tomorrow at noon",
+      "Mountain biking at Chickity",
       "first",
       now,
       offline,
     );
-    expect(draft.reply).toContain("whether kids are coming");
+    expect(draft.reply).toContain("when");
+    expect(db.getDraft("jon").ageGroups).toEqual(["adults"]);
     expect(draft.planId).toBeNull();
     expect(db.rows("plans")).toHaveLength(before);
     const published = await processMessage(
       db,
       "jon",
-      "no kids",
+      "tomorrow at noon",
       "second",
       now.plus({ minutes: 2 }),
       offline,
@@ -139,7 +142,7 @@ describe("text posting", () => {
     const replay = await processMessage(
       db,
       "jon",
-      "no kids",
+      "tomorrow at noon",
       "second",
       now.plus({ minutes: 3 }),
       offline,
@@ -158,8 +161,8 @@ describe("text posting", () => {
       offline,
     );
     const plan = db.plan(result.planId!);
-    expect(plan.company).toBe("with_kids");
-    expect(plan.companyDetail).toBe("five-year-old");
+    expect(plan.ageGroups).toEqual(["adults", "kids"]);
+    expect(plan.attendeeDetail).toBe("five-year-old");
     await processMessage(db, "jon", "Going biking", "partial", now, offline);
     await processMessage(db, "jon", "cancel", "cancel", now, offline);
     expect(db.getDraft("jon")).toEqual({});
@@ -205,29 +208,90 @@ it("preserves an optional duration while asking for a missing start time", async
   expect(plan.endWasDefault).toBe(false);
 });
 
-describe("kids context", () => {
+describe("age groups", () => {
   const now = DateTime.now().setZone(zone);
   it.each(["no kids", "without children", "no kids, everyone welcome"])(
     "recognizes %s as no children coming",
     (text) => {
-      expect(parseExample(text, now).company).toBe("no_kids");
+      expect(parseExample(text, now).ageGroups).toEqual(["adults"]);
     },
   );
   it("records kids coming even when adults without kids are invited", () => {
-    expect(parseExample("With kids, adults are welcome too", now).company).toBe(
-      "with_kids",
-    );
+    expect(
+      parseExample("With kids, adults are welcome too", now).ageGroups,
+    ).toEqual(["kids", "adults"]);
   });
   it.each(["everyone welcome", "anyone can come", "kids welcome too"])(
     "does not infer children are coming from %s",
     (text) => {
-      expect(parseExample(text, now).company).toBeUndefined();
+      expect(parseExample(text, now).ageGroups).toBeUndefined();
     },
   );
-  it.each(["adults", "anyone"])(
+  it.each(["no_kids", "with_kids", "anyone"])(
     "rejects the removed %s option in new plans",
     (company) => {
-      expect(() => normalizePlan({ ...input(), company })).toThrow();
+      expect(() =>
+        normalizePlan({ ...input(), ageGroups: [company] }),
+      ).toThrow();
     },
   );
+});
+
+it("defaults new drafts to adults and retains or replaces explicit age groups on follow-up", () => {
+  const adultDraft = mergePlanDraft({}, { activity: "Mountain biking" }, zone);
+  expect(adultDraft.ageGroups).toEqual(["adults"]);
+  const familyDraft = mergePlanDraft(
+    adultDraft,
+    { ageGroups: ["kids", "adults"] },
+    zone,
+  );
+  expect(
+    mergePlanDraft(familyDraft, { place: "Chickadee" }, zone).ageGroups,
+  ).toEqual(["kids", "adults"]);
+  expect(
+    mergePlanDraft(familyDraft, { ageGroups: ["adults"] }, zone).ageGroups,
+  ).toEqual(["adults"]);
+});
+
+it("keeps a corrected end time through later follow-ups instead of reusing an old duration", () => {
+  const original = mergePlanDraft(
+    {},
+    {
+      startsAt: "2026-11-10T18:00:00.000Z",
+      durationMinutes: 120,
+      endsAt: "2026-11-10T20:00:00.000Z",
+    },
+    zone,
+  );
+  const corrected = mergePlanDraft(
+    original,
+    {
+      endsAt: "2026-11-10T21:00:00.000Z",
+    },
+    zone,
+  );
+  expect(corrected.durationMinutes).toBeUndefined();
+  const followUp = mergePlanDraft(corrected, { place: "River path" }, zone);
+  expect(followUp.endsAt).toBe("2026-11-10T21:00:00.000Z");
+  const defaultEnd = mergePlanDraft(original, { endsAt: null }, zone);
+  expect(
+    mergePlanDraft(defaultEnd, { place: "River path" }, zone).endsAt,
+  ).toBeNull();
+  const newDuration = mergePlanDraft(corrected, { durationMinutes: 60 }, zone);
+  expect(newDuration.endsAt).toBe("2026-11-10T19:00:00.000Z");
+});
+
+it("publishes a complete message without asking for age groups", async () => {
+  const db = store();
+  const now = DateTime.now().setZone(zone);
+  const result = await processMessage(
+    db,
+    "jon",
+    "Mountain biking at Chickadee tomorrow at noon",
+    "default-adults",
+    now,
+    async (text, ref) => parseExample(text, ref),
+  );
+  expect(result.planId).toBeTruthy();
+  expect(db.plan(result.planId!).ageGroups).toEqual(["adults"]);
 });

@@ -18,7 +18,7 @@ const circle = "10000000-0000-0000-0000-000000000001";
 const details = {
   activity: "Mountain biking",
   category: "bike",
-  company: "no_kids",
+  age_groups: ["adults"],
   place: "Chickity",
   starts_at: "2030-11-03T00:15:00-07:00",
   ends_at: null,
@@ -51,6 +51,9 @@ beforeAll(async () => {
   );
   await db.exec(
     readFileSync("supabase/migrations/20261027000000_kids_context.sql", "utf8"),
+  );
+  await db.exec(
+    readFileSync("supabase/migrations/20261030000001_age_groups.sql", "utf8"),
   );
   await db.exec(`insert into auth.users values ('${jon}'),('${eric}'),('${stranger}');
     insert into public.people(id,name,phone) values ('${jon}','Jon','+12025550101'),('${eric}','Eric','+12025550102'),('${stranger}','Stranger','+12025550103');

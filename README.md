@@ -27,7 +27,7 @@ Then open `http://100.84.11.49:3000` while connected to Tailscale. Use this mach
 
 ## Try it
 
-- Browse upcoming plans, this weekend, or plans you're attending. Filter by whether kids are coming.
+- Browse upcoming plans, this weekend, or plans you're attending. Filter by the age groups coming.
 - Open a plan and join. All participants can edit it. Leave without cancelling the plan for the others.
 - Share a plan through the form. What, who, where, and when are required.
 - Open **Try a text**, send an example, and answer a follow-up if a required detail is missing.
@@ -36,11 +36,11 @@ Then open `http://100.84.11.49:3000` while connected to Tailscale. Use this mach
 
 Without an API key, the text simulator uses a deliberately limited parser. It handles the supplied examples, times such as `tomorrow at noon` and `in 30 minutes`, explicit with-kids or no-kids descriptions, and simple follow-ups. It does not understand arbitrary natural language.
 
-To try real extraction, copy `.env.example` to `.env.local`, set `OPENAI_API_KEY` privately, and restart the server. The server uses GPT-5.4 mini with Structured Outputs. It never sends an SMS. The account can incur API charges when you use the text simulator.
+To try real extraction, copy `.env.example` to `.env.local`, set `OPENAI_API_KEY` privately, and restart the server. The server uses GPT-5.4 mini with Structured Outputs. Set `OPENAI_MODEL` to override the configured model. It never sends an SMS. The account can incur API charges when you use the text simulator.
 
 ## Product rules
 
-- Plans have two kids flags, **No kids** and **With kids**. Everyone is welcome on either kind of outing. The flag describes whether children are coming, not who may join.
+- Plans describe attendees with an `ageGroups` array. The initial values are `kids` and `adults`; choose either or both. Everyone is welcome to join. Specific ages can go in the optional attendee details. Existing no-kids plans become `["adults"]`, and with-kids plans become `["kids", "adults"]`.
 - One circle, shared by everyone. Joining a plan never changes its audience.
 - No owner, host badge, approval to join, or response requirement.
 - All current participants can edit. Optimistic version checks prevent stale edits from overwriting changes.

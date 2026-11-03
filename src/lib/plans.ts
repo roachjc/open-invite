@@ -1,16 +1,23 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
-import type { PlanInput, Plan, Company } from "./types";
+import type { PlanInput, Plan, AgeGroup, PlanDraft } from "./types";
 
-export const companyLabels: Record<Company, string> = {
-  no_kids: "No kids",
-  with_kids: "With kids",
+export const ageGroupLabels: Record<AgeGroup, string> = {
+  kids: "Kids",
+  adults: "Adults",
 };
+export function ageGroupsDescription(groups: readonly AgeGroup[]): string {
+  return groups.map((group) => ageGroupLabels[group]).join(" and ");
+}
 export const planInputSchema = z.object({
   activity: z.string().trim().min(2, "What are you doing?").max(100),
   category: z.enum(["bike", "library", "walk", "park", "coffee", "other"]),
-  company: z.enum(["no_kids", "with_kids"]),
-  companyDetail: z.string().trim().max(140).default(""),
+  ageGroups: z
+    .array(z.enum(["kids", "adults"]))
+    .min(1, "Which age groups are coming?")
+    .transform((groups) => [...new Set(groups)].sort())
+    .default(["adults"]),
+  attendeeDetail: z.string().trim().max(140).default(""),
   place: z.string().trim().min(2, "Where are you going?").max(160),
   startsAt: z.string().datetime({ offset: true }),
   endsAt: z.string().datetime({ offset: true }).nullable(),
@@ -44,7 +51,12 @@ export function normalizePlan(
 export function planDescription(
   plan: Pick<
     PlanInput,
-    "activity" | "place" | "startsAt" | "timezone" | "company" | "companyDetail"
+    | "activity"
+    | "place"
+    | "startsAt"
+    | "timezone"
+    | "ageGroups"
+    | "attendeeDetail"
   >,
 ): string {
   const when = DateTime.fromISO(plan.startsAt)
@@ -52,7 +64,7 @@ export function planDescription(
     .toFormat("ccc, LLL d 'at' h:mma")
     .replace(/AM/g, "am")
     .replace(/PM/g, "pm");
-  return `${plan.activity} at ${plan.place}. ${when}. ${companyLabels[plan.company]}${plan.companyDetail ? ` (${plan.companyDetail})` : ""}.`;
+  return `${plan.activity} at ${plan.place}. ${when}. ${ageGroupsDescription(plan.ageGroups)}${plan.attendeeDetail ? ` (${plan.attendeeDetail})` : ""}.`;
 }
 
 export function isCurrent(plan: Plan, now = DateTime.now()): boolean {
@@ -61,4 +73,30 @@ export function isCurrent(plan: Plan, now = DateTime.now()): boolean {
     DateTime.fromISO(plan.endsAt) > now &&
     plan.participants.length > 0
   );
+}
+
+export function mergePlanDraft(
+  current: PlanDraft,
+  changes: PlanDraft,
+  timezone: string,
+): PlanDraft {
+  const draft: PlanDraft = {
+    attendeeDetail: "",
+    note: "",
+    endsAt: null,
+    ...current,
+    ...changes,
+    timezone,
+  };
+  draft.ageGroups ??= ["adults"];
+  if (changes.endsAt !== undefined && changes.durationMinutes === undefined) {
+    delete draft.durationMinutes;
+  }
+  if (draft.durationMinutes && draft.startsAt && !changes.endsAt) {
+    draft.endsAt = DateTime.fromISO(draft.startsAt)
+      .plus({ minutes: draft.durationMinutes })
+      .toUTC()
+      .toISO()!;
+  }
+  return draft;
 }

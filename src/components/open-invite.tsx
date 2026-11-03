@@ -38,12 +38,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { companyLabels } from "@/lib/plans";
+import { ageGroupsDescription } from "@/lib/plans";
 import { createRequestId } from "@/lib/request-id";
 import type {
   AppState,
   Category,
-  Company,
+  AgeGroup,
   Person,
   Plan,
   PlanInput,
@@ -233,8 +233,8 @@ function PlanForm({
       await onSave({
         activity,
         category: inferCategory(activity),
-        company: data.get("company") as Company,
-        companyDetail: String(data.get("companyDetail") || ""),
+        ageGroups: data.getAll("ageGroups") as AgeGroup[],
+        attendeeDetail: String(data.get("attendeeDetail") || ""),
         place: String(data.get("place")),
         startsAt: from.toISO()!,
         endsAt: to ? to.toISO()! : null,
@@ -267,29 +267,34 @@ function PlanForm({
           />
         </label>
         <div className="form-pair">
-          <label>
-            Kids coming?
-            <select name="company" defaultValue={plan?.company || ""} required>
-              <option value="" disabled>
-                Choose one
-              </option>
-              <option value="no_kids">No kids</option>
-              <option value="with_kids">With kids</option>
-            </select>
-          </label>
+          <fieldset className="age-group-fields">
+            <legend>Who&apos;s coming?</legend>
+            {(["kids", "adults"] as const).map((group) => (
+              <label key={group}>
+                <input
+                  type="checkbox"
+                  name="ageGroups"
+                  value={group}
+                  defaultChecked={
+                    plan ? plan.ageGroups.includes(group) : group === "adults"
+                  }
+                />
+                {group === "kids" ? "Kids" : "Adults"}
+              </label>
+            ))}
+          </fieldset>
           <label>
             Details <span>optional</span>
             <input
-              name="companyDetail"
+              name="attendeeDetail"
               placeholder="With my five-year-old"
-              defaultValue={plan?.companyDetail}
+              defaultValue={plan?.attendeeDetail}
               maxLength={140}
             />
           </label>
         </div>
         <p className="field-note">
-          Everyone is welcome. This only tells your friends whether kids are
-          coming.
+          Everyone is welcome. Choose the age groups coming on this outing.
         </p>
         <label>
           Where?
@@ -526,7 +531,8 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
     .plus({ days: now.weekday === 7 ? -1 : (6 - now.weekday + 7) % 7 });
   const filtered = state.plans
     .filter((plan) => {
-      if (company !== "all" && plan.company !== company) return false;
+      if (company !== "all" && !plan.ageGroups.includes(company as AgeGroup))
+        return false;
       if (filter === "mine" && !plan.participants.includes(me.id)) return false;
       if (filter === "weekend") {
         const date = DateTime.fromISO(plan.startsAt).setZone(plan.timezone);
@@ -684,7 +690,7 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                   {view === "people"
                     ? "Everyone here sees every plan."
                     : view === "texts"
-                      ? "One sentence: what, who, where, when. It goes straight to the board."
+                      ? "One sentence: what, who, where, when. Complete plans go to the board."
                       : view === "notifications"
                         ? "Updates on new plans and plans you're in. No texts are sent from this preview."
                         : "What your friends have planned. Join anything that fits."}
@@ -734,11 +740,11 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                     <select
                       value={company}
                       onChange={(e) => setCompany(e.target.value)}
-                      aria-label="Filter by kids"
+                      aria-label="Filter by age group"
                     >
                       <option value="all">All plans</option>
-                      <option value="with_kids">With kids</option>
-                      <option value="no_kids">No kids</option>
+                      <option value="kids">Kids coming</option>
+                      <option value="adults">Adults coming</option>
                     </select>
                     <ChevronDown size={13} />
                   </label>
@@ -825,9 +831,9 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                                         <MapPin size={13} />
                                         {plan.place}
                                       </span>
-                                      {plan.companyDetail && (
+                                      {plan.attendeeDetail && (
                                         <span className="company-detail">
-                                          {plan.companyDetail}
+                                          {plan.attendeeDetail}
                                         </span>
                                       )}
                                     </span>
@@ -838,9 +844,9 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                                     )}
                                   </span>
                                   <span
-                                    className={`company-tag ${plan.company}`}
+                                    className={`company-tag ${plan.ageGroups.includes("kids") ? "with_kids" : ""}`}
                                   >
-                                    {companyLabels[plan.company]}
+                                    {ageGroupsDescription(plan.ageGroups)}
                                   </span>
                                 </button>
                                 <div className="card-footer">
@@ -975,7 +981,7 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                   <div className="thread" ref={threadRef}>
                     <div className="thread-date">Texting as {me.name}</div>
                     <div className="message outgoing">
-                      Going somewhere? Tell me what, whether kids are coming,
+                      Going somewhere? Tell me what, which age groups are coming,
                       where, and when. I&apos;ll share it with the circle.
                     </div>
                     {state.messages.map((message) => (
@@ -1158,8 +1164,10 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                   return <Icon size={22} strokeWidth={1.6} />;
                 })()}
               </span>
-              <span className={`company-tag ${selected.company}`}>
-                {companyLabels[selected.company]}
+              <span
+                className={`company-tag ${selected.ageGroups.includes("kids") ? "with_kids" : ""}`}
+              >
+                {ageGroupsDescription(selected.ageGroups)}
               </span>
             </div>
             <h2 className="detail-title">{selected.activity}</h2>
@@ -1194,11 +1202,13 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
               </div>
               <div>
                 <dt>
-                  <Users size={15} /> Kids
+                  <Users size={15} /> Who&apos;s coming?
                 </dt>
                 <dd>
-                  {companyLabels[selected.company]}
-                  {selected.companyDetail ? ` · ${selected.companyDetail}` : ""}
+                  {ageGroupsDescription(selected.ageGroups)}
+                  {selected.attendeeDetail
+                    ? ` · ${selected.attendeeDetail}`
+                    : ""}
                   <small>Everyone is welcome, with or without children.</small>
                 </dd>
               </div>

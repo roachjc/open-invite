@@ -3,7 +3,13 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DateTime } from "luxon";
-import type { Person, Plan, PlanDraft, Message, Notice } from "../types";
+import type {
+  Person,
+  Plan,
+  PlanDraft,
+  Message,
+  Notice,
+} from "../types";
 import { normalizePlan, planDescription } from "../plans";
 
 export const CIRCLE_ID = "weekend-friends";
@@ -29,15 +35,20 @@ export class Store {
       CREATE TABLE IF NOT EXISTS notices (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS drafts (person_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, payload TEXT NOT NULL);`);
-    // Preserve existing plans and drafts when replacing the former company labels.
-    // Repeating this migration is safe across route workers and server restarts.
+    // Convert old attendance flags without resetting existing plans or drafts.
     this.transaction(() => {
-      this.db.exec(`
-        UPDATE plans SET payload = json_set(payload, '$.company', 'no_kids')
-          WHERE json_extract(payload, '$.company') IN ('adults', 'anyone');
-        UPDATE drafts SET payload = json_set(payload, '$.company', 'no_kids')
-          WHERE json_extract(payload, '$.company') IN ('adults', 'anyone');
-      `);
+      for (const table of ["plans", "drafts"] as const) {
+        this.db
+          .exec(`UPDATE ${table} SET payload = json_set(payload, '$.ageGroups',
+          CASE WHEN json_extract(payload, '$.company') = 'with_kids'
+            THEN json('["kids","adults"]') ELSE json('["adults"]') END)
+          WHERE json_type(payload, '$.ageGroups') IS NULL
+            AND json_extract(payload, '$.company') IN ('with_kids','no_kids','adults','anyone');
+          UPDATE ${table} SET payload = json_set(payload, '$.attendeeDetail', json_extract(payload, '$.companyDetail'))
+            WHERE json_type(payload, '$.attendeeDetail') IS NULL AND json_type(payload, '$.companyDetail') IS NOT NULL;
+          UPDATE ${table} SET payload = json_remove(payload, '$.company', '$.companyDetail')
+            WHERE json_type(payload, '$.company') IS NOT NULL OR json_type(payload, '$.companyDetail') IS NOT NULL;`);
+      }
     });
   }
   rows<T>(table: "people" | "plans" | "messages" | "notices"): T[] {
@@ -198,14 +209,24 @@ export class Store {
       this.put("plans", updated);
       const changed = [
         "activity",
-        "company",
-        "companyDetail",
+        "ageGroups",
+        "attendeeDetail",
         "place",
         "startsAt",
         "endsAt",
         "note",
       ] as const;
-      if (changed.some((key) => plan[key] !== updated[key]))
+      if (
+        changed.some(
+          (key) =>
+            JSON.stringify(
+              key === "ageGroups" ? [...plan[key]].sort() : plan[key],
+            ) !==
+            JSON.stringify(
+              key === "ageGroups" ? [...updated[key]].sort() : updated[key],
+            ),
+        )
+      )
         this.notify(
           updated,
           updated.participants.filter((id) => id !== personId),
@@ -304,8 +325,8 @@ export class Store {
         id: "chickity-ride",
         activity: "A ride at Chickity",
         category: "bike",
-        company: "no_kids",
-        companyDetail: "",
+        ageGroups: ["adults"],
+        attendeeDetail: "",
         place: "Chickity trailhead",
         start: tomorrow.set({ hour: 12 }),
         duration: 120,
@@ -316,8 +337,8 @@ export class Store {
         id: "library-morning",
         activity: "A morning at the library",
         category: "library",
-        company: "with_kids",
-        companyDetail: "Ages 3 and 5",
+        ageGroups: ["kids", "adults"],
+        attendeeDetail: "Ages 3 and 5",
         place: "Downtown library",
         start: saturday.set({ hour: 10 }),
         duration: 90,
@@ -328,8 +349,8 @@ export class Store {
         id: "coffee-walk",
         activity: "Coffee and a wander",
         category: "coffee",
-        company: "no_kids",
-        companyDetail: "",
+        ageGroups: ["adults"],
+        attendeeDetail: "",
         place: "Little Oak Coffee",
         start: tomorrow.set({ hour: 16 }),
         duration: null,
@@ -340,8 +361,8 @@ export class Store {
         id: "park-afternoon",
         activity: "An afternoon at the park",
         category: "park",
-        company: "with_kids",
-        companyDetail: "Ages 4 to 7",
+        ageGroups: ["kids", "adults"],
+        attendeeDetail: "Ages 4 to 7",
         place: "Riverside playground",
         start: saturday.set({ hour: 14 }),
         duration: 120,
@@ -352,8 +373,8 @@ export class Store {
         id: "sunday-walk",
         activity: "The long way home",
         category: "walk",
-        company: "no_kids",
-        companyDetail: "",
+        ageGroups: ["adults"],
+        attendeeDetail: "",
         place: "Cedar loop",
         start: saturday.plus({ days: 1 }).set({ hour: 9, minute: 30 }),
         duration: 90,
@@ -365,8 +386,8 @@ export class Store {
       const base = normalizePlan({
         activity: s.activity,
         category: s.category,
-        company: s.company,
-        companyDetail: s.companyDetail,
+        ageGroups: [...s.ageGroups],
+        attendeeDetail: s.attendeeDetail,
         place: s.place,
         startsAt: s.start.toISO(),
         endsAt: s.duration

@@ -2,8 +2,7 @@ import { DateTime } from "luxon";
 import { randomUUID } from "node:crypto";
 import { Store } from "./database";
 import { extract } from "./extraction";
-import { planDescription } from "../plans";
-import type { PlanDraft } from "../types";
+import { planDescription, mergePlanDraft } from "../plans";
 
 type Extractor = typeof extract;
 const locks = new Map<string, Promise<unknown>>();
@@ -38,22 +37,11 @@ export async function processMessage(
           now.setZone(person.timezone),
           current,
         );
-        const draft: PlanDraft = {
-          companyDetail: "",
-          note: "",
-          endsAt: null,
-          ...current,
-          ...changes,
-          timezone: person.timezone,
-        };
-        if (draft.durationMinutes && draft.startsAt && !changes.endsAt)
-          draft.endsAt = DateTime.fromISO(draft.startsAt)
-            .plus({ minutes: draft.durationMinutes })
-            .toUTC()
-            .toISO()!;
+        const draft = mergePlanDraft(current, changes, person.timezone);
         const missing = [
           !draft.activity && "what you're doing",
-          !draft.company && "whether kids are coming (with kids or no kids)",
+          !draft.ageGroups?.length &&
+            "which age groups are coming (kids, adults, or both)",
           !draft.place && "where",
           !draft.startsAt && "when",
         ].filter(Boolean);

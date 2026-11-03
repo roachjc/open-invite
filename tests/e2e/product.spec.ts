@@ -16,9 +16,9 @@ test("browse, join, edit as an equal participant, and leave without cancelling t
     page.getByRole("heading", { name: "What are we doing?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "This weekend", exact: true }).click();
-  await page.getByLabel("Filter by kids").selectOption("with_kids");
+  await page.getByLabel("Filter by age group").selectOption("kids");
   await expect(page.locator(".plan-card")).toHaveCount(2);
-  await page.getByLabel("Filter by kids").selectOption("all");
+  await page.getByLabel("Filter by age group").selectOption("all");
   await page.getByRole("button", { name: "Coming up", exact: true }).click();
   await page
     .getByRole("button", { name: "View A ride at Chickity", exact: true })
@@ -54,9 +54,7 @@ test("share a plan from the form, preserve it across reloads, and default its en
   await page
     .getByLabel("What are you doing?", { exact: true })
     .fill("An evening walk");
-  await page
-    .getByRole("combobox", { name: "Kids coming?", exact: true })
-    .selectOption("no_kids");
+  await page.getByRole("checkbox", { name: "Adults", exact: true }).check();
   await page.getByLabel("Where?", { exact: true }).fill("River path");
   await page
     .getByLabel("When?", { exact: true })
@@ -90,15 +88,13 @@ test("text follow-ups hold a draft until all four required details are present",
   await page.getByRole("button", { name: "Try a text", exact: true }).click();
   await page
     .getByLabel("Your text to the service")
-    .fill("Mountain biking at Chickity tomorrow at noon");
+    .fill("Mountain biking at Chickity");
   await page.getByRole("button", { name: "Send text" }).click();
-  await expect(
-    page.getByText(/Before I share it, tell me whether kids are coming/),
-  ).toBeVisible();
+  await expect(page.getByText(/Before I share it, tell me when/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "View plan", exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Your text to the service").fill("no kids");
+  await page.getByLabel("Your text to the service").fill("tomorrow at noon");
   await page.getByRole("button", { name: "Send text" }).click();
   await expect(page.getByText(/Shared with your circle/)).toBeVisible();
   await page.getByRole("button", { name: "View plan", exact: true }).click();

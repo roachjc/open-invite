@@ -1,4 +1,4 @@
-export type Company = "no_kids" | "with_kids";
+export type AgeGroup = "kids" | "adults";
 export type Category =
   "bike" | "library" | "walk" | "park" | "coffee" | "other";
 export type Person = {
@@ -12,8 +12,8 @@ export type Person = {
 export type PlanInput = {
   activity: string;
   category: Category;
-  company: Company;
-  companyDetail: string;
+  ageGroups: AgeGroup[];
+  attendeeDetail: string;
   place: string;
   startsAt: string;
   endsAt: string | null;

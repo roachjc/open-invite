@@ -1801,3 +1801,23 @@ ol {
     scroll-behavior: auto !important;
   }
 }
+
+.age-group-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.age-group-fields legend {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.age-group-fields label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 18px;
+}
+.age-group-fields input {
+  width: auto;
+  accent-color: var(--green);
+}
