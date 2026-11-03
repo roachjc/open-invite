@@ -88,3 +88,28 @@ People can coordinate by texting directly. Multiple circles, automatic matching,
 ## QC and production setup
 
 See [the setup checklist](docs/SETUP.md) for the accounts, credentials, separate resources, and implementation work needed before the service can go live. Use `.env.qc.example` and `.env.production.example` as blank templates. They contain no credentials and do not enable hosted mode on their own.
+
+## Test AI extraction
+
+`Try a text` uses the real API when `OPENAI_API_KEY` is configured. In that conversation, complete drafts publish local plans. Missing activity, location, or time prompts a follow-up. Unspecified age groups default to `["adults"]`; follow-ups retain any age groups already supplied. API failures do not fall back to the example parser.
+
+Under **Try a text → Inspect extraction**, enter a message to see the simulator request, full OpenAI request body with prompt and schema, structured response, response output and token usage, normalized changes, and the resulting plan model. Follow-ups can continue the latest draft. Run history stays in the current inspector session; **Start over** clears it. This mode never publishes plans or creates notifications.
+
+For extraction without publishing through the API, call `POST /api/extract` from the local app origin:
+
+```json
+{
+  "text": "Mountain biking at Chickadee in 30 minutes for two hours, no kids",
+  "draft": {}
+}
+```
+
+The response contains `parser`, `changes`, the merged `draft`, and `missingFields`. Pass the returned draft back with a follow-up message to continue without saving a plan. Dates resolve against the server's current time in the signed-in person's time zone. Place names remain as supplied; there is no location or activity library yet. This endpoint uses the same local identity and hosted-mode restrictions as the rest of the preview.
+
+Run the opt-in live checks with:
+
+```bash
+OPEN_INVITE_LIVE_AI_TEST=true node --env-file=.env.local node_modules/vitest/vitest.mjs run tests/extraction-live.test.ts
+```
+
+These checks make paid API requests using synthetic messages and an isolated in-memory database. Routine `npm test` skips them. API calls use `store: false`; the service still receives the message and current draft. The key stays on the server.

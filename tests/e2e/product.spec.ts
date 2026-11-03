@@ -191,3 +191,95 @@ test("notification switch persists per person and controls new previews", async 
     ).status(),
   ).toBe(400);
 });
+
+test("extraction endpoint returns a follow-up draft without publishing or notifying", async ({
+  request,
+}) => {
+  const before = await (await request.get("/api/state")).json();
+  const initial = await request.post("/api/extract", {
+    data: {
+      text: "Mountain biking at Chickadee in 30 minutes for two hours",
+      draft: {},
+    },
+  });
+  expect(initial.ok()).toBe(true);
+  const first = await initial.json();
+  expect(first.missingFields).toEqual([]);
+  expect(first.draft.ageGroups).toEqual(["adults"]);
+  expect(first.draft.place).toBe("Chickadee");
+  const followUp = await request.post("/api/extract", {
+    data: { text: "no kids", draft: first.draft },
+  });
+  expect(followUp.ok()).toBe(true);
+  const complete = await followUp.json();
+  expect(complete.missingFields).toEqual([]);
+  expect(complete.draft.ageGroups).toEqual(["adults"]);
+  expect(complete.draft.startsAt).toBe(first.draft.startsAt);
+  const after = await (await request.get("/api/state")).json();
+  expect(after.plans).toEqual(before.plans);
+  expect(after.notices).toEqual(before.notices);
+  expect(after.messages).toEqual(before.messages);
+});
+
+test("inspector shows requests, responses and a plan model, supports follow-ups, and never publishes", async ({
+  page,
+  request,
+}) => {
+  const before = await (await request.get("/api/state")).json();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Try a text", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Inspect extraction", exact: true })
+    .click();
+  await page
+    .getByLabel("Message to inspect")
+    .fill("Mountain biking at Chickadee");
+  await page
+    .getByRole("button", { name: "Inspect message", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Missing: startsAt");
+  await expect(page.getByLabel("Simulator request JSON")).toContainText(
+    "Chickadee",
+  );
+  await expect(page.getByLabel("Plan model JSON")).toContainText(
+    '"place": "Chickadee"',
+  );
+  await page.getByLabel("Message to inspect").fill("tomorrow at noon");
+  await page
+    .getByRole("button", { name: "Inspect message", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText(
+    "Plan is complete, not published",
+  );
+  await expect(page.getByLabel("Plan model JSON")).toContainText(
+    '"endWasDefault": true',
+  );
+  await expect(page.getByLabel("Plan model JSON")).toContainText(
+    '"participants"',
+  );
+  await expect(page.getByLabel("Simulator request JSON")).toContainText(
+    '"place": "Chickadee"',
+  );
+  const history = page.getByRole("navigation", { name: "Inspection runs" });
+  await history.getByRole("button").first().click();
+  await expect(page.getByRole("status")).toContainText("Missing: startsAt");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await page
+      .locator(".inspection-grid")
+      .evaluate(
+        (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+      ),
+  ).toBe(1);
+  await page.getByRole("button", { name: "Start over", exact: true }).click();
+  await expect(page.getByLabel("Plan model JSON")).toHaveCount(0);
+  const after = await (await request.get("/api/state")).json();
+  expect(after.plans).toEqual(before.plans);
+  expect(after.notices).toEqual(before.notices);
+  expect(after.messages).toEqual(before.messages);
+});

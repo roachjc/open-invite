@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { ageGroupsDescription } from "@/lib/plans";
 import { createRequestId } from "@/lib/request-id";
+import { ExtractionInspector } from "@/components/extraction-inspector";
 import type {
   AppState,
   Category,
@@ -365,6 +366,9 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
   const [state, setState] = useState<AppState | null>(null);
   const [loadError, setLoadError] = useState("");
   const [view, setView] = useState<View>("plans");
+  const [textMode, setTextMode] = useState<"conversation" | "inspect">(
+    "conversation",
+  );
   const [filter, setFilter] = useState<Filter>("upcoming");
   const [company, setCompany] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -690,7 +694,9 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                   {view === "people"
                     ? "Everyone here sees every plan."
                     : view === "texts"
-                      ? "One sentence: what, who, where, when. Complete plans go to the board."
+                      ? textMode === "inspect"
+                        ? "Inspect the request, response, and plan model without publishing."
+                        : "One sentence: what, who, where, when. Complete plans go to the board."
                       : view === "notifications"
                         ? "Updates on new plans and plans you're in. No texts are sent from this preview."
                         : "What your friends have planned. Join anything that fits."}
@@ -962,129 +968,154 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
             )}
 
             {view === "texts" && (
-              <div className="text-layout">
-                <section className="text-simulator">
-                  <div className="thread-header">
-                    <span className="bot-avatar">
-                      <ArrowUpRight size={20} />
-                    </span>
-                    <div>
-                      <h2>Open Invite</h2>
-                      <p>Local simulator · no SMS sent</p>
-                    </div>
-                    <span className="parser-badge">
-                      {state.parser === "openai"
-                        ? "AI extraction"
-                        : "Example parser"}
-                    </span>
-                  </div>
-                  <div className="thread" ref={threadRef}>
-                    <div className="thread-date">Texting as {me.name}</div>
-                    <div className="message outgoing">
-                      Going somewhere? Tell me what, which age groups are coming,
-                      where, and when. I&apos;ll share it with the circle.
-                    </div>
-                    {state.messages.map((message) => (
-                      <div
-                        className={`message ${message.direction}`}
-                        key={message.id}
-                      >
-                        <p>{message.body}</p>
-                        {message.planId && (
-                          <button
-                            onClick={() => {
-                              setView("plans");
-                              openPlan(message.planId!);
-                            }}
+              <>
+                <div
+                  className="simulator-modes"
+                  role="group"
+                  aria-label="Simulator mode"
+                >
+                  <button
+                    aria-pressed={textMode === "conversation"}
+                    onClick={() => setTextMode("conversation")}
+                  >
+                    Conversation
+                  </button>
+                  <button
+                    aria-pressed={textMode === "inspect"}
+                    onClick={() => setTextMode("inspect")}
+                  >
+                    Inspect extraction
+                  </button>
+                </div>
+                {textMode === "inspect" ? (
+                  <ExtractionInspector key={me.id} personName={me.name} />
+                ) : (
+                  <div className="text-layout">
+                    <section className="text-simulator">
+                      <div className="thread-header">
+                        <span className="bot-avatar">
+                          <ArrowUpRight size={20} />
+                        </span>
+                        <div>
+                          <h2>Open Invite</h2>
+                          <p>Local simulator · no SMS sent</p>
+                        </div>
+                        <span className="parser-badge">
+                          {state.parser === "openai"
+                            ? "AI extraction"
+                            : "Example parser"}
+                        </span>
+                      </div>
+                      <div className="thread" ref={threadRef}>
+                        <div className="thread-date">Texting as {me.name}</div>
+                        <div className="message outgoing">
+                          Going somewhere? Tell me what, which age groups are
+                          coming, where, and when. I&apos;ll share it with the
+                          circle.
+                        </div>
+                        {state.messages.map((message) => (
+                          <div
+                            className={`message ${message.direction}`}
+                            key={message.id}
                           >
-                            View plan <ArrowUpRight size={13} />
-                          </button>
+                            <p>{message.body}</p>
+                            {message.planId && (
+                              <button
+                                onClick={() => {
+                                  setView("plans");
+                                  openPlan(message.planId!);
+                                }}
+                              >
+                                View plan <ArrowUpRight size={13} />
+                              </button>
+                            )}
+                            <time>
+                              {DateTime.fromISO(message.createdAt)
+                                .setZone(state.timezone)
+                                .toFormat("h:mm a")}
+                            </time>
+                          </div>
+                        ))}
+                        {busy && (
+                          <div className="message outgoing typing">
+                            <span />
+                            <span />
+                            <span />
+                          </div>
                         )}
-                        <time>
-                          {DateTime.fromISO(message.createdAt)
-                            .setZone(state.timezone)
-                            .toFormat("h:mm a")}
-                        </time>
                       </div>
-                    ))}
-                    {busy && (
-                      <div className="message outgoing typing">
-                        <span />
-                        <span />
-                        <span />
-                      </div>
-                    )}
-                  </div>
-                  <form className="message-compose" onSubmit={sendText}>
-                    <label className="sr-only" htmlFor="message">
-                      Your text to the service
-                    </label>
-                    <textarea
-                      id="message"
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      placeholder="Going for a ride at…"
-                      maxLength={1500}
-                      rows={2}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          event.currentTarget.form?.requestSubmit();
-                        }
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      className="send-button"
-                      disabled={!text.trim() || busy}
-                      aria-label="Send text"
-                    >
-                      {busy ? (
-                        <LoaderCircle size={18} className="spin" />
-                      ) : (
-                        <ArrowUpRight size={18} />
+                      <form className="message-compose" onSubmit={sendText}>
+                        <label className="sr-only" htmlFor="message">
+                          Your text to the service
+                        </label>
+                        <textarea
+                          id="message"
+                          value={text}
+                          onChange={(e) => setText(e.target.value)}
+                          placeholder="Going for a ride at…"
+                          maxLength={1500}
+                          rows={2}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              event.currentTarget.form?.requestSubmit();
+                            }
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          className="send-button"
+                          disabled={!text.trim() || busy}
+                          aria-label="Send text"
+                        >
+                          {busy ? (
+                            <LoaderCircle size={18} className="spin" />
+                          ) : (
+                            <ArrowUpRight size={18} />
+                          )}
+                        </button>
+                      </form>
+                      {messageError && (
+                        <p role="alert" className="error message-error">
+                          {messageError}
+                        </p>
                       )}
-                    </button>
-                  </form>
-                  {messageError && (
-                    <p role="alert" className="error message-error">
-                      {messageError}
-                    </p>
-                  )}
-                </section>
-                <aside className="text-help">
-                  <span className="eyebrow">Examples</span>
-                  <p>
-                    Tap one to load it, or leave out a detail and answer the
-                    follow-up.
-                  </p>
-                  {examples.map((example) => (
-                    <button
-                      key={example}
-                      onClick={() => {
-                        setText(example);
-                        document.getElementById("message")?.focus();
-                      }}
-                    >
-                      <span>&quot;{example}&quot;</span>
-                      <ArrowDownLeft size={15} />
-                    </button>
-                  ))}
-                  <div className="parser-note">
-                    <Info size={16} />
-                    <p>
-                      {state.parser === "examples"
-                        ? "This preview uses a small example parser. It understands the phrases above, with kids / no kids, and times like tomorrow at noon or in 30 minutes. It won't understand every sentence yet."
-                        : "Messages use AI extraction. Missing required details stay in a draft until you answer."}
-                    </p>
+                    </section>
+                    <aside className="text-help">
+                      <span className="eyebrow">Examples</span>
+                      <p>
+                        Tap one to load it, or leave out a detail and answer the
+                        follow-up.
+                      </p>
+                      {examples.map((example) => (
+                        <button
+                          key={example}
+                          onClick={() => {
+                            setText(example);
+                            document.getElementById("message")?.focus();
+                          }}
+                        >
+                          <span>&quot;{example}&quot;</span>
+                          <ArrowDownLeft size={15} />
+                        </button>
+                      ))}
+                      <div className="parser-note">
+                        <Info size={16} />
+                        <p>
+                          {state.parser === "examples"
+                            ? "This preview uses a small example parser. It understands the phrases above, with kids / no kids, and times like tomorrow at noon or in 30 minutes. It won't understand every sentence yet."
+                            : "Messages use AI extraction. Missing required details stay in a draft until you answer."}
+                        </p>
+                      </div>
+                      <p className="field-note">
+                        Type &quot;cancel&quot; to discard an unfinished draft.
+                        Notifications are previews only. This conversation is
+                        with the service, not with your friends.
+                      </p>
+                    </aside>
                   </div>
-                  <p className="field-note">
-                    Type &quot;cancel&quot; to discard an unfinished draft.
-                    Notifications are previews only. This conversation is with
-                    the service, not with your friends.
-                  </p>
-                </aside>
-              </div>
+                )}
+              </>
             )}
 
             {view === "notifications" && (
