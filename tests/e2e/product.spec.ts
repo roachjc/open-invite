@@ -8,6 +8,80 @@ test.afterAll(async ({ request }) => {
   await request.post("/api/demo/reset", { data: {} });
 });
 
+test("text everyone uses current participants and offers manual copying when clipboard is blocked", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: async () => {
+          throw new Error("Clipboard blocked");
+        },
+      },
+      configurable: true,
+    });
+  });
+  await page.goto("/plans/chickity-ride");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.locator(".detail-person")).toHaveCount(2);
+  const otherNumbers = await dialog
+    .locator(".detail-person a")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href")!.slice(4)),
+    );
+  const textEveryone = dialog.getByRole("link", {
+    name: "Text everyone",
+    exact: true,
+  });
+  const beforeJoin = await textEveryone.getAttribute("href");
+  expect(beforeJoin?.slice(4).split(",").sort()).toEqual(otherNumbers.sort());
+  await page.getByRole("button", { name: "I'm coming", exact: true }).click();
+  await expect(dialog.getByText("Jon (you)", { exact: true })).toBeVisible();
+  await expect(textEveryone).toHaveAttribute("href", beforeJoin!);
+  await dialog
+    .getByRole("button", { name: "Copy numbers", exact: true })
+    .click();
+  await expect(
+    dialog.locator(".plan-text-actions").getByRole("status"),
+  ).toContainText("Select and copy");
+  const numbers = dialog.getByLabel("Participant numbers");
+  expect((await numbers.inputValue()).split(", ").sort()).toEqual(
+    otherNumbers.sort(),
+  );
+  await numbers.focus();
+  expect(
+    await numbers.evaluate(
+      (input: HTMLInputElement) => input.selectionEnd! - input.selectionStart!,
+    ),
+  ).toBe((await numbers.inputValue()).length);
+  await page
+    .getByRole("button", { name: "I can't make it", exact: true })
+    .click();
+  await expect(numbers).toHaveCount(0);
+  await expect(textEveryone).toHaveAttribute("href", beforeJoin!);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: async (text: string) => {
+          (window as Window & { copiedNumbers?: string }).copiedNumbers = text;
+        },
+      },
+      configurable: true,
+    });
+  });
+  await dialog
+    .getByRole("button", { name: "Copy numbers", exact: true })
+    .click();
+  await expect(
+    dialog.locator(".plan-text-actions").getByRole("status"),
+  ).toContainText("Numbers copied");
+  expect(
+    await page.evaluate(
+      () => (window as Window & { copiedNumbers?: string }).copiedNumbers,
+    ),
+  ).toBe(await numbers.inputValue());
+});
+
 test("browse, join, edit as an equal participant, and leave without cancelling the others", async ({
   page,
 }) => {

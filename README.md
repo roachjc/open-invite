@@ -29,6 +29,7 @@ Then open `http://100.84.11.49:3000` while connected to Tailscale. Use this mach
 
 - Browse upcoming plans, this weekend, or plans you're attending. Filter by the age groups coming.
 - Open a plan and join. All participants can edit it. Leave without cancelling the plan for the others.
+- On a plan, use **Text everyone** to open a message draft to the other current participants. Use **Copy numbers** to paste their numbers into your messaging app if the group draft does not open correctly. If clipboard access is unavailable, the numbers appear in a selectable field. These actions use the sample numbers in the local preview. Group drafts need testing on real iPhone and Android devices; existing threads and later participant changes stay under your messaging app's control.
 - Share a plan through the form. What, who, where, and when are required.
 - Open **Try a text**, send an example, and answer a follow-up if a required detail is missing.
 - Switch the preview identity in the desktop sidebar to see other friends' notifications and participation. This switch is a development convenience, not authentication.

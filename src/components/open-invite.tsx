@@ -41,6 +41,7 @@ import {
 import { ageGroupsDescription } from "@/lib/plans";
 import { createRequestId } from "@/lib/request-id";
 import { ExtractionInspector } from "@/components/extraction-inspector";
+import { PlanTextActions } from "@/components/plan-text-actions";
 import type {
   AppState,
   Category,
@@ -1310,7 +1311,12 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                     </div>
                   );
                 })}
-              <p>Questions? Text each other directly. Numbers are samples.</p>
+              <PlanTextActions
+                key={`${selected.id}:${selected.version}:${me.id}`}
+                plan={selected}
+                people={state.people}
+                me={me}
+              />
             </div>
             <div className="detail-actions">
               {selected.participants.includes(me.id) ? (
