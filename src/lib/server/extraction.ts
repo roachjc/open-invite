@@ -8,15 +8,19 @@ import type { PlanInput, PlanDraft, Category } from "../types";
 export function parseExample(text: string, now: DateTime): PlanDraft {
   const result: PlanDraft = {};
   const categories: [RegExp, Category, string][] = [
-    [
-      /\b(bik(?:e|ing)|rid(?:e|ing)|mountain biking|cycling)\b/i,
-      "bike",
-      "Mountain biking",
-    ],
+    [/\bgravel\s+(?:ride|riding|bik(?:e|ing))\b/i, "bike", "Gravel ride"],
+    [/\bclassic\s+ski(?:ing)?\b/i, "other", "Classic ski"],
+    [/\bskate\s+ski(?:ing)?\b/i, "other", "Skate ski"],
+    [/\bdownhill\s+ski(?:ing)?\b/i, "other", "Downhill skiing"],
+    [/\bbackcountry\s+ski(?:ing)?\b/i, "other", "Backcountry skiing"],
+    [/\bcross[ -]country\s+ski(?:ing)?\b/i, "other", "Cross-country skiing"],
+    [/\bski(?:ing)?\b/i, "other", "Skiing"],
+    [/\bmountain\s+bik(?:e|ing)\b/i, "bike", "Mountain biking"],
+    [/\b(bik(?:e|ing)|rid(?:e|ing)|cycling)\b/i, "bike", "Bike ride"],
     [/\blibrary\b/i, "library", "A trip to the library"],
-    [/\b(playground|park)\b/i, "park", "Time at the park"],
-    [/\bcoffee\b/i, "coffee", "Coffee"],
-    [/\b(walk|walking|hike|hiking)\b/i, "walk", "A walk"],
+    [/\b(run|running|jog|jogging)\b/i, "walk", "Run"],
+    [/\b(hike|hiking)\b/i, "walk", "Hike"],
+    [/\b(walk|walking)\b/i, "walk", "A walk"],
   ];
   for (const [pattern, category, activity] of categories)
     if (pattern.test(text)) {

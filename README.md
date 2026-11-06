@@ -1,6 +1,6 @@
 # Open Invite
 
-Share what you're doing, see what your friends are up to, and join them. Plans have participants and no owner.
+Share a ride, ski, run, hike, or library visit with the kids, see what your friends are doing, and join them. Plans have participants and no owner.
 
 ## Run locally
 
@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. No accounts, API keys, or Docker are required for the local preview. The app seeds six fictional friends and five upcoming plans. All phone numbers are fictional.
+Open http://localhost:3000. No accounts, API keys, or Docker are required for the local preview. The app seeds six fictional friends and nine upcoming activity plans. All phone numbers are fictional.
 
 The local database lives in `.data/open-invite.sqlite`, which Git ignores. Plans, participation, messages, drafts, and notification previews survive page reloads and server restarts. The sidebar's reset button restores the samples after confirmation.
 
@@ -27,7 +27,7 @@ Then open `http://YOUR_TAILSCALE_IP:3000` while connected to Tailscale. Replace 
 
 ## Try it
 
-- Browse upcoming plans, this weekend, or plans you're attending. Filter by the age groups coming.
+- Browse upcoming plans, plans you're attending, or plans with kids.
 - Open a plan and join. All participants can edit it. Leave without cancelling the plan for the others.
 - On a plan, use **Text everyone** to open a message draft to the other current participants. Use **Copy numbers** to paste their numbers into your messaging app if the group draft does not open correctly. If clipboard access is unavailable, the numbers appear in a selectable field. These actions use the sample numbers in the local preview. Group drafts need testing on real iPhone and Android devices; existing threads and later participant changes stay under your messaging app's control.
 - Share a plan through the form. What, who, where, and when are required.
@@ -41,7 +41,7 @@ To try real extraction, copy `.env.example` to `.env.local`, set `OPENAI_API_KEY
 
 ## Product rules
 
-- Plans describe attendees with an `ageGroups` array. The initial values are `kids` and `adults`; choose either or both. Everyone is welcome to join. Specific ages can go in the optional attendee details. Existing no-kids plans become `["adults"]`, and with-kids plans become `["kids", "adults"]`.
+- Plans describe attendees with an `ageGroups` array. Adults are implicit. Plans with children show "With kids"; plans without children have no age badge. The form always includes adults and adds kids when "With kids" is checked. Everyone is welcome to join. Specific ages can go in the optional attendee details. Existing no-kids plans become `["adults"]`, and with-kids plans become `["kids", "adults"]`.
 - One circle, shared by everyone. Joining a plan never changes its audience.
 - No owner, host badge, approval to join, or response requirement.
 - All current participants can edit. Optimistic version checks prevent stale edits from overwriting changes.

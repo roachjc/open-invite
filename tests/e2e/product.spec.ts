@@ -87,16 +87,25 @@ test("browse, join, edit as an equal participant, and leave without cancelling t
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "What are we doing?" }),
+    page.getByRole("button", { name: "Share a plan", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "This weekend", exact: true }).click();
-  await page.getByLabel("Filter by age group").selectOption("kids");
-  await expect(page.locator(".plan-card")).toHaveCount(2);
-  await page.getByLabel("Filter by age group").selectOption("all");
+  await expect(
+    page.getByRole("heading", { name: "What are we doing?" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".page-heading .eyebrow")).toHaveCount(0);
+  await page.getByRole("button", { name: "With kids", exact: true }).click();
+  await expect(page.locator(".plan-card .company-tag")).toHaveText([
+    "With kids",
+    "With kids",
+  ]);
   await page.getByRole("button", { name: "Coming up", exact: true }).click();
   await page
-    .getByRole("button", { name: "View A ride at Chickity", exact: true })
+    .getByRole("button", {
+      name: "View Mountain biking at Chickity",
+      exact: true,
+    })
     .click();
+  await expect(page.getByRole("dialog").locator(".company-tag")).toHaveCount(0);
   await page.getByRole("button", { name: "I'm coming", exact: true }).click();
   await expect(page.getByText("You're going. See you there.")).toBeVisible();
   await page.reload();
@@ -128,7 +137,12 @@ test("share a plan from the form, preserve it across reloads, and default its en
   await page
     .getByLabel("What are you doing?", { exact: true })
     .fill("An evening walk");
-  await page.getByRole("checkbox", { name: "Adults", exact: true }).check();
+  await expect(
+    page.getByRole("checkbox", { name: "Adults", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("checkbox", { name: "With kids", exact: true }),
+  ).not.toBeChecked();
   await page.getByLabel("Where?", { exact: true }).fill("River path");
   await page
     .getByLabel("When?", { exact: true })
@@ -191,15 +205,22 @@ test("mobile browsing fits the screen and supports joining", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "What are we doing?" }),
+    page.getByRole("button", { name: "Share a plan", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What are we doing?" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".page-heading .eyebrow")).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
   await page
-    .getByRole("button", { name: "View A ride at Chickity", exact: true })
+    .getByRole("button", {
+      name: "View Mountain biking at Chickity",
+      exact: true,
+    })
     .click();
   await page.getByRole("button", { name: "I'm coming", exact: true }).click();
   await expect(page.getByText("You're going. See you there.")).toBeVisible();

@@ -152,11 +152,11 @@ export function ExtractionInspector({ personName }: { personName: string }) {
             type="button"
             disabled={busy}
             onClick={() => {
-              setText("Adults only, no kids");
+              setText("No kids");
               document.getElementById("inspection-text")?.focus();
             }}
           >
-            Adults only, no kids
+            No kids
           </button>
         )}
       </div>

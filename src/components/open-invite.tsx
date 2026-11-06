@@ -33,26 +33,23 @@ import {
   MessageCircle,
   Plus,
   RotateCcw,
-  SlidersHorizontal,
   TreePine,
   Users,
   X,
 } from "lucide-react";
-import { ageGroupsDescription } from "@/lib/plans";
 import { createRequestId } from "@/lib/request-id";
 import { ExtractionInspector } from "@/components/extraction-inspector";
 import { PlanTextActions } from "@/components/plan-text-actions";
 import type {
   AppState,
   Category,
-  AgeGroup,
   Person,
   Plan,
   PlanInput,
 } from "@/lib/types";
 
 type View = "plans" | "people" | "texts" | "notifications";
-type Filter = "upcoming" | "weekend" | "mine";
+type Filter = "upcoming" | "mine" | "kids";
 const icons = {
   bike: Bike,
   library: BookOpen,
@@ -64,7 +61,13 @@ const icons = {
 const examples = [
   "Mountain biking at Chickity tomorrow at noon, no kids, for two hours.",
   "Going to the library on Saturday at 10am with my five-year-old, for an hour.",
-  "Coffee at Little Oak tomorrow at 4pm, no kids.",
+  "Gravel ride at River road tomorrow at 4pm for two hours.",
+  "Classic ski at the Nordic trailhead tomorrow at 9am for an hour.",
+  "Skate ski at the Nordic trailhead tomorrow at noon for an hour.",
+  "Downhill skiing at the ski hill tomorrow at 10am for two hours.",
+  "Backcountry skiing at Upper pass tomorrow at 8am for four hours.",
+  "Run at Cedar loop tomorrow at 5pm for an hour.",
+  "Hike at Cedar loop on Saturday at 10am with kids for two hours.",
 ];
 
 async function request<T>(url: string, data?: unknown): Promise<T> {
@@ -235,7 +238,7 @@ function PlanForm({
       await onSave({
         activity,
         category: inferCategory(activity),
-        ageGroups: data.getAll("ageGroups") as AgeGroup[],
+        ageGroups: data.has("withKids") ? ["adults", "kids"] : ["adults"],
         attendeeDetail: String(data.get("attendeeDetail") || ""),
         place: String(data.get("place")),
         startsAt: from.toISO()!,
@@ -260,7 +263,7 @@ function PlanForm({
           What are you doing?
           <input
             name="activity"
-            placeholder="Ride, ski day, library run…"
+            placeholder="Mountain biking, gravel ride, classic ski…"
             defaultValue={plan?.activity}
             required
             minLength={2}
@@ -271,19 +274,14 @@ function PlanForm({
         <div className="form-pair">
           <fieldset className="age-group-fields">
             <legend>Who&apos;s coming?</legend>
-            {(["kids", "adults"] as const).map((group) => (
-              <label key={group}>
-                <input
-                  type="checkbox"
-                  name="ageGroups"
-                  value={group}
-                  defaultChecked={
-                    plan ? plan.ageGroups.includes(group) : group === "adults"
-                  }
-                />
-                {group === "kids" ? "Kids" : "Adults"}
-              </label>
-            ))}
+            <label>
+              <input
+                type="checkbox"
+                name="withKids"
+                defaultChecked={plan?.ageGroups.includes("kids") ?? false}
+              />
+              With kids
+            </label>
           </fieldset>
           <label>
             Details <span>optional</span>
@@ -295,14 +293,11 @@ function PlanForm({
             />
           </label>
         </div>
-        <p className="field-note">
-          Everyone is welcome. Choose the age groups coming on this outing.
-        </p>
         <label>
           Where?
           <input
             name="place"
-            placeholder="Trailhead, park, address"
+            placeholder="Trailhead, ski area, library"
             defaultValue={plan?.place}
             required
             minLength={2}
@@ -371,7 +366,6 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
     "conversation",
   );
   const [filter, setFilter] = useState<Filter>("upcoming");
-  const [company, setCompany] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(
     initialPlanId || null,
   );
@@ -530,19 +524,10 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
     );
   const me = state.people.find((p) => p.id === state.currentPersonId)!;
   const selected = state.plans.find((p) => p.id === selectedId);
-  const now = DateTime.now().setZone(state.timezone);
-  const saturday = now
-    .startOf("day")
-    .plus({ days: now.weekday === 7 ? -1 : (6 - now.weekday + 7) % 7 });
   const filtered = state.plans
     .filter((plan) => {
-      if (company !== "all" && !plan.ageGroups.includes(company as AgeGroup))
-        return false;
       if (filter === "mine" && !plan.participants.includes(me.id)) return false;
-      if (filter === "weekend") {
-        const date = DateTime.fromISO(plan.startsAt).setZone(plan.timezone);
-        if (date < saturday || date >= saturday.plus({ days: 2 })) return false;
-      }
+      if (filter === "kids" && !plan.ageGroups.includes("kids")) return false;
       return true;
     })
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -679,30 +664,32 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
             </div>
           </header>
           <main className="main-content">
-            <div className="page-heading">
-              <div>
-                <p className="eyebrow">
-                  {view === "plans"
-                    ? now.toFormat("cccc, LLLL d")
-                    : view === "people"
+            <div
+              className={`page-heading ${view === "plans" ? "plans-heading" : ""}`}
+            >
+              {view === "plans" ? (
+                <h1 className="sr-only">Plans</h1>
+              ) : (
+                <div>
+                  <p className="eyebrow">
+                    {view === "people"
                       ? `${state.people.length} people · one circle`
                       : view === "texts"
                         ? "Text simulator"
                         : "Preview only"}
-                </p>
-                <h1>{title}</h1>
-                <p className="subtitle">
-                  {view === "people"
-                    ? "Everyone here sees every plan."
-                    : view === "texts"
-                      ? textMode === "inspect"
-                        ? "Inspect the request, response, and plan model without publishing."
-                        : "One sentence: what, who, where, when. Complete plans go to the board."
-                      : view === "notifications"
-                        ? "Updates on new plans and plans you're in. No texts are sent from this preview."
-                        : "What your friends have planned. Join anything that fits."}
-                </p>
-              </div>
+                  </p>
+                  <h1>{title}</h1>
+                  <p className="subtitle">
+                    {view === "people"
+                      ? "Everyone here sees every plan."
+                      : view === "texts"
+                        ? textMode === "inspect"
+                          ? "Inspect the request, response, and plan model without publishing."
+                          : "One sentence: what, who, where, when. Complete plans go to the board."
+                        : "Updates on new plans and plans you're in. No texts are sent from this preview."}
+                  </p>
+                </div>
+              )}
               {view === "plans" && (
                 <button
                   className="button primary share-button"
@@ -720,8 +707,8 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                     {(
                       [
                         ["upcoming", "Coming up"],
-                        ["weekend", "This weekend"],
                         ["mine", "I'm going"],
+                        ["kids", "With kids"],
                       ] as const
                     ).map(([value, label]) => (
                       <button
@@ -742,19 +729,6 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                       </button>
                     ))}
                   </div>
-                  <label className="company-filter">
-                    <SlidersHorizontal size={14} />
-                    <select
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      aria-label="Filter by age group"
-                    >
-                      <option value="all">All plans</option>
-                      <option value="kids">Kids coming</option>
-                      <option value="adults">Adults coming</option>
-                    </select>
-                    <ChevronDown size={13} />
-                  </label>
                 </div>
                 <div className="board-layout">
                   <section className="plans-column" aria-label="Friends' plans">
@@ -793,10 +767,6 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                           <span>
                             {DateTime.fromISO(date).toFormat("ccc, LLL d")}
                           </span>
-                          <small>
-                            {plans.length}{" "}
-                            {plans.length === 1 ? "plan" : "plans"}
-                          </small>
                         </div>
                         <div className="plan-grid">
                           {plans.map((plan) => {
@@ -838,11 +808,6 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                                         <MapPin size={13} />
                                         {plan.place}
                                       </span>
-                                      {plan.attendeeDetail && (
-                                        <span className="company-detail">
-                                          {plan.attendeeDetail}
-                                        </span>
-                                      )}
                                     </span>
                                     {plan.note && (
                                       <span className="plan-note">
@@ -850,11 +815,11 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                                       </span>
                                     )}
                                   </span>
-                                  <span
-                                    className={`company-tag ${plan.ageGroups.includes("kids") ? "with_kids" : ""}`}
-                                  >
-                                    {ageGroupsDescription(plan.ageGroups)}
-                                  </span>
+                                  {plan.ageGroups.includes("kids") && (
+                                    <span className="company-tag with_kids">
+                                      With kids
+                                    </span>
+                                  )}
                                 </button>
                                 <div className="card-footer">
                                   <span className="going-summary">
@@ -1010,9 +975,9 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                       <div className="thread" ref={threadRef}>
                         <div className="thread-date">Texting as {me.name}</div>
                         <div className="message outgoing">
-                          Going somewhere? Tell me what, which age groups are
-                          coming, where, and when. I&apos;ll share it with the
-                          circle.
+                          Going somewhere? Tell me what, where, and when.
+                          Mention if kids are coming. I&apos;ll share it with
+                          the circle.
                         </div>
                         {state.messages.map((message) => (
                           <div
@@ -1227,17 +1192,16 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
                   return <Icon size={22} strokeWidth={1.6} />;
                 })()}
               </span>
-              <span
-                className={`company-tag ${selected.ageGroups.includes("kids") ? "with_kids" : ""}`}
-              >
-                {ageGroupsDescription(selected.ageGroups)}
-              </span>
+              {selected.ageGroups.includes("kids") && (
+                <span className="company-tag with_kids">With kids</span>
+              )}
             </div>
             <h2 className="detail-title">{selected.activity}</h2>
             <dl className="detail-facts">
               <div>
                 <dt>
-                  <CalendarDays size={15} /> Date
+                  <CalendarDays size={15} aria-hidden="true" />
+                  <span className="sr-only">Date</span>
                 </dt>
                 <dd>
                   {DateTime.fromISO(selected.startsAt)
@@ -1247,7 +1211,8 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
               </div>
               <div>
                 <dt>
-                  <Clock3 size={15} /> Time
+                  <Clock3 size={15} aria-hidden="true" />
+                  <span className="sr-only">Time</span>
                 </dt>
                 <dd>
                   {clock(selected.startsAt, selected.timezone)}
@@ -1259,21 +1224,10 @@ export function OpenInvite({ initialPlanId }: { initialPlanId?: string }) {
               </div>
               <div>
                 <dt>
-                  <MapPin size={15} /> Where
+                  <MapPin size={15} aria-hidden="true" />
+                  <span className="sr-only">Where</span>
                 </dt>
                 <dd>{selected.place}</dd>
-              </div>
-              <div>
-                <dt>
-                  <Users size={15} /> Who&apos;s coming?
-                </dt>
-                <dd>
-                  {ageGroupsDescription(selected.ageGroups)}
-                  {selected.attendeeDetail
-                    ? ` · ${selected.attendeeDetail}`
-                    : ""}
-                  <small>Everyone is welcome, with or without children.</small>
-                </dd>
               </div>
             </dl>
             {selected.note && <p className="detail-note">{selected.note}</p>}

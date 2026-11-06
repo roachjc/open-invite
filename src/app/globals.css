@@ -177,7 +177,6 @@ ol {
   color: var(--ink);
   background: var(--hover);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--green);
 }
 .nav-item.active svg {
   color: var(--green);
@@ -347,6 +346,9 @@ ol {
   gap: 20px;
   margin-bottom: 24px;
 }
+.page-heading.plans-heading {
+  justify-content: flex-end;
+}
 .eyebrow {
   display: block;
   font-family: var(--mono);
@@ -461,28 +463,7 @@ ol {
   font-size: 11px;
   color: var(--muted);
 }
-.company-filter {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 0 10px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  color: var(--muted);
-}
-.company-filter select {
-  appearance: none;
-  border: 0;
-  background: none;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink);
-  cursor: pointer;
-  padding: 0 4px 0 0;
-}
+
 
 /* Board */
 .board-layout {
@@ -510,12 +491,6 @@ ol {
   font-size: 12px;
   color: var(--muted);
 }
-.day-heading small {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-}
 .plan-grid {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -532,9 +507,6 @@ ol {
 }
 .plan-card:hover {
   background: var(--subtle);
-}
-.plan-card.joined {
-  box-shadow: inset 3px 0 0 var(--green);
 }
 .card-open {
   display: grid;
@@ -840,7 +812,6 @@ ol {
   padding: 12px 16px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--green);
   border-radius: var(--radius);
   color: var(--ink-2);
   margin-bottom: 16px;
@@ -1346,7 +1317,7 @@ ol {
 }
 .detail-facts > div {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: 15px minmax(0, 1fr);
   gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
@@ -1684,7 +1655,6 @@ ol {
   }
   .nav-item.active {
     background: none;
-    box-shadow: inset 0 -2px 0 var(--green);
   }
   .nav-item svg {
     width: 16px;
@@ -1712,7 +1682,7 @@ ol {
     font-size: 14px;
   }
   .share-button {
-    margin-top: 14px;
+    margin-top: 0;
     width: 100%;
   }
   .board-toolbar {
@@ -1787,9 +1757,6 @@ ol {
   }
   .dialog h2.detail-title {
     font-size: 23px;
-  }
-  .detail-facts > div {
-    grid-template-columns: 84px minmax(0, 1fr);
   }
   .plan-form input,
   .plan-form select,

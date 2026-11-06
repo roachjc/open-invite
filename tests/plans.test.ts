@@ -99,6 +99,25 @@ describe("plan rules", () => {
 });
 
 describe("text posting", () => {
+  it.each([
+    ["Mountain biking", "Mountain biking"],
+    ["Gravel ride", "Gravel ride"],
+    ["Classic ski", "Classic ski"],
+    ["Skate ski", "Skate ski"],
+    ["Downhill skiing", "Downhill skiing"],
+    ["Backcountry skiing", "Backcountry skiing"],
+    ["Run", "Run"],
+    ["Hike", "Hike"],
+    ["Library visit", "A trip to the library"],
+  ])("preserves the activity in the offline example %s", (text, activity) => {
+    const result = parseExample(
+      `${text} at Cedar loop tomorrow at 10am for an hour`,
+      DateTime.now().setZone(zone),
+    );
+    expect(result.activity).toBe(activity);
+    expect(result.place).toBe("Cedar loop");
+    expect(result.startsAt).toBeTruthy();
+  });
   const now = DateTime.fromISO("2026-10-26T10:00:00", { zone });
   const offline = async (text: string, ref: DateTime) =>
     parseExample(text, ref);

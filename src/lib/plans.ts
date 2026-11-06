@@ -2,12 +2,8 @@ import { DateTime } from "luxon";
 import { z } from "zod";
 import type { PlanInput, Plan, AgeGroup, PlanDraft } from "./types";
 
-export const ageGroupLabels: Record<AgeGroup, string> = {
-  kids: "Kids",
-  adults: "Adults",
-};
 export function ageGroupsDescription(groups: readonly AgeGroup[]): string {
-  return groups.map((group) => ageGroupLabels[group]).join(" and ");
+  return groups.includes("kids") ? "With kids" : "";
 }
 export const planInputSchema = z.object({
   activity: z.string().trim().min(2, "What are you doing?").max(100),
@@ -64,7 +60,10 @@ export function planDescription(
     .toFormat("ccc, LLL d 'at' h:mma")
     .replace(/AM/g, "am")
     .replace(/PM/g, "pm");
-  return `${plan.activity} at ${plan.place}. ${when}. ${ageGroupsDescription(plan.ageGroups)}${plan.attendeeDetail ? ` (${plan.attendeeDetail})` : ""}.`;
+  const attendees = [ageGroupsDescription(plan.ageGroups), plan.attendeeDetail]
+    .filter(Boolean)
+    .join(" · ");
+  return `${plan.activity} at ${plan.place}. ${when}.${attendees ? ` ${attendees}.` : ""}`;
 }
 
 export function isCurrent(plan: Plan, now = DateTime.now()): boolean {
