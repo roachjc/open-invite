@@ -1,0 +1,25 @@
+---
+import { spriteId, type IconNode } from "./icons";
+// References a Lucide icon in the page's sprite. No icon code reaches the
+// browser, and each icon's shape is sent once per page. Shared presentation
+// attributes are set by the .icon class.
+interface Props {
+  icon: IconNode;
+  size?: number;
+  strokeWidth?: number;
+  class?: string;
+}
+const { icon, size = 24, strokeWidth, class: className } = Astro.props;
+const id = spriteId.get(icon);
+if (!id) throw new Error("Add this icon to src/components/icons.ts.");
+---
+
+<svg
+  class:list={["icon", className]}
+  width={size}
+  height={size}
+  stroke-width={strokeWidth}
+  aria-hidden="true"
+>
+  <use href={`#${id}`} />
+</svg>

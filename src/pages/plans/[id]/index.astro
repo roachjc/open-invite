@@ -1,0 +1,45 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Board from "@/components/Board.astro";
+import PlanDialog from "@/components/PlanDialog.astro";
+import UnavailableDialog from "@/components/UnavailableDialog.astro";
+import { loadApp, readForm } from "@/lib/server/app";
+import { finish } from "@/lib/server/respond";
+import { identity, publicError, safeReturn } from "@/lib/server/http";
+import { getStore } from "@/lib/server/database";
+
+const id = Astro.params.id!;
+if (Astro.request.method === "POST") {
+  const data = await readForm(Astro);
+  const joining = data.get("intent") === "join";
+  const back = safeReturn(data.get("return"), `/plans/${id}`);
+  let message: string;
+  try {
+    getStore().participate(identity(Astro.cookies), id, joining);
+    message = joining
+      ? "You're going. The other participants have a notification preview."
+      : "You've left the plan.";
+  } catch (failure) {
+    message = publicError(failure).message;
+  }
+  return finish(Astro, back, message);
+}
+const app = loadApp(Astro);
+const plan = app.plans.find((candidate) => candidate.id === id);
+if (!plan) Astro.response.status = 404;
+---
+
+<Shell
+  app={app}
+  view="plans"
+  title={plan?.activity ?? "Plan unavailable"}
+  home="/"
+  hasDialog
+>
+  <Board app={app} />
+  {plan ? (
+    <PlanDialog slot="dialog" app={app} plan={plan} />
+  ) : (
+    <UnavailableDialog slot="dialog" app={app} />
+  )}
+</Shell>

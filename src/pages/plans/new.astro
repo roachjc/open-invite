@@ -1,0 +1,44 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Board from "@/components/Board.astro";
+import PlanFormDialog from "@/components/PlanFormDialog.astro";
+import { loadApp, readForm } from "@/lib/server/app";
+import { finish } from "@/lib/server/respond";
+import { publicError } from "@/lib/server/http";
+import { planFormValues, readPlanForm } from "@/lib/server/forms";
+
+const app = loadApp(Astro);
+let values = planFormValues(undefined, app.timezone);
+let error: string | null = null;
+if (Astro.request.method === "POST") {
+  const form = readPlanForm(await readForm(Astro), app.timezone);
+  values = form.values;
+  error = form.error ?? null;
+  if (form.input) {
+    try {
+      const plan = app.store.create(app.me.id, form.input);
+      return finish(
+        Astro,
+        `/plans/${plan.id}`,
+        "Plan shared. Your circle has a notification preview.",
+      );
+    } catch (failure) {
+      error = publicError(failure).message;
+    }
+  }
+  Astro.response.status = 422;
+}
+---
+
+<Shell
+  app={app}
+  view="plans"
+  title="Share a plan"
+  home="/"
+  live={false}
+  transient
+  hasDialog
+>
+  <Board app={app} />
+  <PlanFormDialog slot="dialog" app={app} values={values} error={error} />
+</Shell>

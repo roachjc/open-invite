@@ -1,0 +1,12 @@
+---
+import { LoaderCircle } from "lucide";
+import Icon from "./Icon.astro";
+// Replaces a submit button's icon while its form is submitting.
+interface Props {
+  size?: number;
+}
+---
+
+<span class="busy-icon">
+  <Icon icon={LoaderCircle} size={Astro.props.size ?? 16} class="spin" />
+</span>

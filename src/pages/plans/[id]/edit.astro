@@ -1,0 +1,58 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Board from "@/components/Board.astro";
+import PlanFormDialog from "@/components/PlanFormDialog.astro";
+import { loadApp, readForm } from "@/lib/server/app";
+import { setFlash } from "@/lib/server/flash";
+import { finish } from "@/lib/server/respond";
+import { publicError } from "@/lib/server/http";
+import { planFormValues, readPlanForm } from "@/lib/server/forms";
+
+const id = Astro.params.id!;
+const app = loadApp(Astro);
+const plan = app.plans.find((candidate) => candidate.id === id);
+if (!plan || !plan.participants.includes(app.me.id)) {
+  if (plan) setFlash(Astro.cookies, "Join this plan before editing it.");
+  return Astro.redirect(`/plans/${id}`, 303);
+}
+let values = planFormValues(plan, plan.timezone);
+let error: string | null = null;
+if (Astro.request.method === "POST") {
+  const data = await readForm(Astro);
+  const form = readPlanForm(data, plan.timezone);
+  values = form.values;
+  error = form.error ?? null;
+  if (form.input) {
+    try {
+      app.store.edit(app.me.id, id, Number(data.get("version")), form.input);
+      return finish(
+        Astro,
+        `/plans/${id}`,
+        "Plan updated. The other participants have a notification preview.",
+      );
+    } catch (failure) {
+      error = publicError(failure).message;
+    }
+  }
+  Astro.response.status = 422;
+}
+---
+
+<Shell
+  app={app}
+  view="plans"
+  title="Edit plan"
+  home="/"
+  live={false}
+  transient
+  hasDialog
+>
+  <Board app={app} />
+  <PlanFormDialog
+    slot="dialog"
+    app={app}
+    plan={plan}
+    values={values}
+    error={error}
+  />
+</Shell>

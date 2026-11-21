@@ -1,0 +1,29 @@
+---
+import { X } from "lucide";
+import Icon from "./Icon.astro";
+import Toast from "./Toast.astro";
+interface Props {
+  // Identifies what the dialog shows. When a new page shows the same dialog,
+  // the script keeps it open and replaces only its contents.
+  id: string;
+  label: string;
+  // Where closing leads without script. With script, closing returns to the
+  // page the dialog was opened from when that is possible.
+  close: string;
+  flash?: string | null;
+}
+const { id, label, close, flash } = Astro.props;
+---
+
+<dialog open class="dialog" aria-label={label} data-modal={id}>
+  <div class="dialog-head">
+    <span class="eyebrow">OPEN INVITE</span>
+    <form action={close} method="get" data-close>
+      <button class="icon-button" aria-label="Close dialog">
+        <Icon icon={X} size={20} />
+      </button>
+    </form>
+  </div>
+  <slot />
+  {flash && <Toast message={flash} />}
+</dialog>

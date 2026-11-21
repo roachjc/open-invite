@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
-import type { PlanInput, Plan, AgeGroup, PlanDraft } from "./types";
+import type { PlanInput, Plan, AgeGroup, PlanDraft, Category } from "./types";
 
 export function ageGroupsDescription(groups: readonly AgeGroup[]): string {
   return groups.includes("kids") ? "With kids" : "";
@@ -15,8 +15,8 @@ export const planInputSchema = z.object({
     .default(["adults"]),
   attendeeDetail: z.string().trim().max(140).default(""),
   place: z.string().trim().min(2, "Where are you going?").max(160),
-  startsAt: z.string().datetime({ offset: true }),
-  endsAt: z.string().datetime({ offset: true }).nullable(),
+  startsAt: z.iso.datetime({ offset: true }),
+  endsAt: z.iso.datetime({ offset: true }).nullable(),
   timezone: z
     .string()
     .refine(
@@ -98,4 +98,13 @@ export function mergePlanDraft(
       .toISO()!;
   }
   return draft;
+}
+
+export function inferCategory(activity: string): Category {
+  if (/bik|ride|cycl/i.test(activity)) return "bike";
+  if (/library|book/i.test(activity)) return "library";
+  if (/park|playground/i.test(activity)) return "park";
+  if (/coffee|cafe/i.test(activity)) return "coffee";
+  if (/walk|hike/i.test(activity)) return "walk";
+  return "other";
 }

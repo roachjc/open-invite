@@ -1,0 +1,12 @@
+---
+import type { Person } from "@/lib/types";
+interface Props {
+  person: Person;
+  small?: boolean;
+}
+const { person, small = false } = Astro.props;
+---
+
+<span title={person.name} class:list={["avatar", person.color, { small }]}>
+  {person.initials}
+</span>

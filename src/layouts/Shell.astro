@@ -1,0 +1,158 @@
+---
+import {
+  ArrowUpRight,
+  Bell,
+  ChevronDown,
+  Compass,
+  MessageCircle,
+  RotateCcw,
+  Users,
+} from "lucide";
+import Layout from "./Layout.astro";
+import Avatar from "@/components/Avatar.astro";
+import Icon from "@/components/Icon.astro";
+import Toast from "@/components/Toast.astro";
+import { zoneLabel } from "@/lib/server/format";
+import type { App, View } from "@/lib/server/app";
+
+interface Props {
+  app: App;
+  view: View;
+  title: string;
+  // Path to return to after switching identity.
+  home: string;
+  // Pages whose content is derived only from stored state refresh themselves.
+  live?: boolean;
+  // Form dialogs are replaced in history once they are submitted.
+  transient?: boolean;
+  hasDialog?: boolean;
+}
+const {
+  app,
+  view,
+  title,
+  home,
+  live = true,
+  transient = false,
+  hasDialog = false,
+} = Astro.props;
+const navigation = [
+  { id: "plans", href: "/", label: "What's happening", icon: Compass },
+  {
+    id: "people",
+    href: "/circle",
+    label: "Our circle",
+    icon: Users,
+    count: app.people.length,
+  },
+  { id: "texts", href: "/texts", label: "Try a text", icon: MessageCircle },
+  {
+    id: "notifications",
+    href: "/notifications",
+    label: "Notifications",
+    icon: Bell,
+    count: app.notices.length || undefined,
+  },
+] as const;
+const current = navigation.find((item) => item.id === view)!;
+---
+
+<Layout title={title}>
+  <div
+    id="app"
+    class="app-shell"
+    data-view={view}
+    data-live={live ? "" : undefined}
+    data-transient={transient ? "" : undefined}
+  >
+    <aside class="sidebar">
+      <a href="/" class="brand">
+        <span class="logo-mark">
+          <Icon icon={ArrowUpRight} size={25} strokeWidth={1.7} />
+        </span>
+        <span>
+          open invite<span class="brand-dot">.</span>
+        </span>
+      </a>
+      <div class="circle-label">
+        <span class="status-dot"></span>
+        {app.circleName}
+        <Icon icon={ChevronDown} size={13} />
+      </div>
+      <nav aria-label="Main navigation">
+        {navigation.map((item) => (
+          <a
+            href={item.href}
+            class:list={["nav-item", { active: item.id === view }]}
+            aria-current={item.id === view ? "page" : undefined}
+          >
+            <Icon icon={item.icon} size={18} strokeWidth={1.65} />
+            <span>{item.label}</span>
+            {"count" in item && item.count !== undefined && (
+              <span class="nav-count">{item.count}</span>
+            )}
+          </a>
+        ))}
+      </nav>
+      <ol class="sidebar-note" aria-label="How it works">
+        <li>Post what you're doing.</li>
+        <li>Anyone free can join.</li>
+        <li>No RSVPs. No group chat.</li>
+      </ol>
+      <div class="sidebar-bottom">
+        <div class="demo-label">
+          <span></span> Local preview
+        </div>
+        <form class="identity" method="post" action="/identity">
+          <Avatar person={app.me} />
+          <label>
+            <small>Viewing as</small>
+            <select
+              name="personId"
+              aria-label="Preview as a friend"
+              data-autosubmit
+            >
+              {app.people.map((person) => (
+                <option value={person.id} selected={person.id === app.me.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Icon icon={ChevronDown} size={14} />
+          <input type="hidden" name="return" value={home} />
+          <noscript>
+            <button class="text-button">Switch</button>
+          </noscript>
+        </form>
+        <a class="reset-button" href="/reset">
+          <Icon icon={RotateCcw} size={12} /> Reset sample plans
+        </a>
+      </div>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <span class="breadcrumb">
+          <span class="status-dot"></span>
+          {app.circleName}
+          <span aria-hidden="true">/</span>
+          <strong>{current.label}</strong>
+        </span>
+        <div>
+          <span class="sample-pill">Sample circle</span>
+          <Avatar person={app.me} small />
+        </div>
+      </header>
+      <main class="main-content" id="main" tabindex="-1">
+        <slot />
+      </main>
+      <footer class="site-footer">
+        <span>open invite.</span>
+        <small>Local preview · Sample data · {zoneLabel(app.timezone)}</small>
+      </footer>
+    </div>
+    <slot name="dialog" />
+    {!hasDialog && app.flash && <Toast message={app.flash} />}
+  </div>
+</Layout>

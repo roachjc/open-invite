@@ -1,0 +1,25 @@
+---
+import { CalendarDays } from "lucide";
+import Dialog from "./Dialog.astro";
+import Icon from "./Icon.astro";
+import type { App } from "@/lib/server/app";
+interface Props {
+  app: App;
+}
+---
+
+<Dialog
+  id="unavailable"
+  label="Plan unavailable"
+  close="/"
+  flash={Astro.props.app.flash}
+>
+  <div class="unavailable">
+    <Icon icon={CalendarDays} size={32} />
+    <h2>This plan isn't on the board.</h2>
+    <p>It may have ended, or everyone may have left.</p>
+    <a class="button primary" href="/" data-close>
+      Back to the plans
+    </a>
+  </div>
+</Dialog>

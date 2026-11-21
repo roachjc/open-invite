@@ -94,8 +94,8 @@ The intended hosted configuration is:
 
 - `OPEN_INVITE_ENV`: `qc` or `production`. Planned environment identification and guardrails.
 - `APP_URL`: the fixed HTTPS address of that environment, used in SMS links and webhook configuration. Planned hosted integration.
-- `NEXT_PUBLIC_SUPABASE_URL`: that environment's Supabase URL.
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: that environment's browser-safe publishable key.
+- `PUBLIC_SUPABASE_URL`: that environment's Supabase URL.
+- `PUBLIC_SUPABASE_PUBLISHABLE_KEY`: that environment's browser-safe publishable key.
 - `SUPABASE_SECRET_KEY`: that environment's server-only secret key.
 - `OPENAI_API_KEY`: that environment's OpenAI project key. Already used by local extraction when configured.
 - `OPENAI_MODEL`: `gpt-5.4-mini` initially. Already supported.

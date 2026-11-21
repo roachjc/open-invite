@@ -1,0 +1,182 @@
+---
+import {
+  CalendarDays,
+  Check,
+  Clock3,
+  Copy,
+  MapPin,
+  MessageCircle,
+  Plus,
+} from "lucide";
+import Avatar from "./Avatar.astro";
+import Dialog from "./Dialog.astro";
+import Icon from "./Icon.astro";
+import Spinner from "./Spinner.astro";
+import { categoryIcons } from "./icons";
+import { clock, format, zoneLabel } from "@/lib/server/format";
+import type { App } from "@/lib/server/app";
+import type { Person, Plan } from "@/lib/types";
+
+interface Props {
+  app: App;
+  plan: Plan;
+  // Templates for instant opening carry no page message.
+  quiet?: boolean;
+}
+const { app, plan, quiet = false } = Astro.props;
+const { me } = app;
+const going = plan.participants.includes(me.id);
+const participants = plan.participants
+  .map((id) => app.person(id))
+  .filter((person): person is Person => Boolean(person))
+  .sort((a, b) => a.name.localeCompare(b.name));
+const digits = (phone: string) => phone.replace(/[^+\d]/g, "");
+const numbers = [
+  ...new Set(
+    participants
+      .filter((person) => person.id !== me.id)
+      .map((person) => digits(person.phone))
+      .filter((phone) => phone && phone !== digits(me.phone)),
+  ),
+];
+const recipients = numbers.join(",");
+---
+
+<Dialog
+  id={`plan:${plan.id}`}
+  label={plan.activity}
+  close="/"
+  flash={quiet ? null : app.flash}
+>
+  <div class="detail-heading">
+    <span class={`activity-icon large ${plan.category}`}>
+      <Icon icon={categoryIcons[plan.category]} size={22} strokeWidth={1.6} />
+    </span>
+    {plan.ageGroups.includes("kids") && (
+      <span class="company-tag with_kids">With kids</span>
+    )}
+  </div>
+  <h2 class="detail-title">{plan.activity}</h2>
+  <dl class="detail-facts">
+    <div>
+      <dt>
+        <Icon icon={CalendarDays} size={15} />
+        <span class="sr-only">Date</span>
+      </dt>
+      <dd>{format(plan.startsAt, plan.timezone, "cccc, LLLL d")}</dd>
+    </div>
+    <div>
+      <dt>
+        <Icon icon={Clock3} size={15} />
+        <span class="sr-only">Time</span>
+      </dt>
+      <dd>
+        {clock(plan.startsAt, plan.timezone)}
+        {plan.endWasDefault
+          ? " · until the end of the day"
+          : ` – ${clock(plan.endsAt, plan.timezone)}`}
+        <small>{zoneLabel(plan.timezone)}</small>
+      </dd>
+    </div>
+    <div>
+      <dt>
+        <Icon icon={MapPin} size={15} />
+        <span class="sr-only">Where</span>
+      </dt>
+      <dd>{plan.place}</dd>
+    </div>
+  </dl>
+  {plan.note && <p class="detail-note">{plan.note}</p>}
+  <div class="detail-people">
+    <div class="aside-title">
+      <h3>Who's going</h3>
+      <span>
+        {`${participants.length} ${participants.length === 1 ? "person" : "people"}`}
+      </span>
+    </div>
+    {participants.map((person) => (
+      <div class="detail-person">
+        <Avatar person={person} small />
+        <span>
+          {person.name}
+          {person.id === me.id ? " (you)" : ""}
+        </span>
+        <a href={`sms:${person.phone}`} aria-label={`Text ${person.name}`}>
+          <Icon icon={MessageCircle} size={16} />
+        </a>
+      </div>
+    ))}
+    {numbers.length ? (
+      <div class="plan-text-actions" data-numbers={numbers.join(", ")}>
+        <div class="detail-action-row">
+          <a
+            class="button secondary"
+            href={`sms:${recipients}`}
+            data-sms-apple={`sms:/open?addresses=${recipients}`}
+          >
+            <Icon icon={MessageCircle} size={16} /> Text everyone
+          </a>
+          <button
+            type="button"
+            class="button secondary js-only"
+            data-copy-numbers
+          >
+            <Icon icon={Copy} size={16} /> Copy numbers
+          </button>
+        </div>
+        <p class="field-note">
+          Opens a message to the other current participants. If the recipients
+          don't appear, copy their numbers instead. Numbers are samples.
+        </p>
+        <p class="field-note" role="status" data-copy-status></p>
+        <noscript>
+          <label class="recipient-numbers">
+            Participant numbers
+            <input readonly value={numbers.join(", ")} />
+          </label>
+        </noscript>
+      </div>
+    ) : (
+      <p class="field-note">No other participants to text yet.</p>
+    )}
+  </div>
+  <div class="detail-actions">
+    <form method="post" action={`/plans/${plan.id}`}>
+      {going ? (
+        <>
+          <div class="youre-in">
+            <Icon icon={Check} size={16} /> You're going. See you there.
+          </div>
+          <div class="detail-action-row">
+            <a class="button secondary" href={`/plans/${plan.id}/edit`}>
+              Edit plan
+            </a>
+            <button class="button text-danger" name="intent" value="leave">
+              I can't make it
+            </button>
+          </div>
+        </>
+      ) : (
+        <button class="button primary full" name="intent" value="join">
+          <span class="idle-icon">
+            <Icon icon={Plus} size={17} />
+          </span>
+          <Spinner /> I'm coming
+        </button>
+      )}
+    </form>
+    <button
+      type="button"
+      class="copy-link js-only"
+      data-copy-link={`/plans/${plan.id}`}
+    >
+      <span class="idle-icon">
+        <Icon icon={Copy} size={12} />
+      </span>
+      <span class="done-icon">
+        <Icon icon={Check} size={12} />
+      </span>
+      <span data-label>Copy plan link</span>
+    </button>
+  </div>
+</Dialog>

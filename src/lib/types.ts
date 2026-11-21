@@ -49,14 +49,3 @@ export type Notice = {
 export type NotificationPreferences = {
   enabled: boolean;
 };
-export type AppState = {
-  notificationPreferences: NotificationPreferences;
-  people: Person[];
-  plans: Plan[];
-  messages: Message[];
-  notices: Notice[];
-  currentPersonId: string;
-  circleName: string;
-  timezone: string;
-  parser: "examples" | "openai";
-};

@@ -1,0 +1,127 @@
+---
+import { ArrowDownLeft, ArrowUpRight, Info } from "lucide";
+import Icon from "./Icon.astro";
+import Spinner from "./Spinner.astro";
+import TextsHeading from "./TextsHeading.astro";
+import { format } from "@/lib/server/format";
+import type { App } from "@/lib/server/app";
+
+interface Props {
+  app: App;
+  draft?: string;
+  error?: string | null;
+}
+const { app, draft = "", error } = Astro.props;
+const examples = [
+  "Mountain biking at Chickity tomorrow at noon, no kids, for two hours.",
+  "Going to the library on Saturday at 10am with my five-year-old, for an hour.",
+  "Gravel ride at River road tomorrow at 4pm for two hours.",
+  "Classic ski at the Nordic trailhead tomorrow at 9am for an hour.",
+  "Skate ski at the Nordic trailhead tomorrow at noon for an hour.",
+  "Downhill skiing at the ski hill tomorrow at 10am for two hours.",
+  "Backcountry skiing at Upper pass tomorrow at 8am for four hours.",
+  "Run at Cedar loop tomorrow at 5pm for an hour.",
+  "Hike at Cedar loop on Saturday at 10am with kids for two hours.",
+];
+---
+
+<TextsHeading mode="conversation" />
+<div class="text-layout">
+  <section class="text-simulator">
+    <div class="thread-header">
+      <span class="bot-avatar">
+        <Icon icon={ArrowUpRight} size={20} />
+      </span>
+      <div>
+        <h2>Open Invite</h2>
+        <p>Local simulator · no SMS sent</p>
+      </div>
+      <span class="parser-badge">
+        {app.parser === "openai" ? "AI extraction" : "Example parser"}
+      </span>
+    </div>
+    <div class="thread">
+      <div class="thread-messages" data-thread>
+        <div class="thread-date">Texting as {app.me.name}</div>
+        <div class="message outgoing">
+          Going somewhere? Tell me what, where, and when. Mention if kids are
+          coming. I'll share it with the circle.
+        </div>
+        {app.messages.map((message) => (
+          <div class={`message ${message.direction}`}>
+            <p>{message.body}</p>
+            {message.planId && (
+              <a href={`/plans/${message.planId}`}>
+                View plan <Icon icon={ArrowUpRight} size={13} />
+              </a>
+            )}
+            <time datetime={message.createdAt}>
+              {format(message.createdAt, app.timezone, "h:mm a")}
+            </time>
+          </div>
+        ))}
+        <div class="message outgoing typing" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+    <form class="message-compose" method="post" action="/texts">
+      <input type="hidden" name="messageId" data-request-id />
+      <label class="sr-only" for="message">
+        Your text to the service
+      </label>
+      <textarea
+        id="message"
+        name="body"
+        placeholder="Going for a ride at…"
+        maxlength="1500"
+        rows="2"
+        required
+        data-persist
+        data-enter-submits
+      >{draft}</textarea>
+      <button
+        type="submit"
+        class="send-button"
+        aria-label="Send text"
+        data-requires="message"
+      >
+        <span class="idle-icon">
+          <Icon icon={ArrowUpRight} size={18} />
+        </span>
+        <Spinner size={18} />
+      </button>
+    </form>
+    {error && (
+      <p role="alert" class="error message-error">
+        {error}
+      </p>
+    )}
+  </section>
+  <aside class="text-help">
+    <span class="eyebrow">Examples</span>
+    <p class="js-only">
+      Tap one to load it, or leave out a detail and answer the follow-up.
+    </p>
+    {examples.map((example) => (
+      <button type="button" class="js-only" data-fill="message" value={example}>
+        <span>"{example}"</span>
+        <Icon icon={ArrowDownLeft} size={15} />
+      </button>
+    ))}
+    <div class="parser-note">
+      <Icon icon={Info} size={16} />
+      <p>
+        {app.parser === "examples"
+          ? "This preview uses a small example parser. It understands the phrases above, with kids / no kids, and times like tomorrow at noon or in 30 minutes. It won't understand every sentence yet."
+          : "Messages use AI extraction. Missing required details stay in a draft until you answer."}
+      </p>
+    </div>
+    <p class="field-note">
+      Type "cancel" to discard an unfinished draft. Notifications are previews
+      only. This conversation is with the service, not with your friends.
+    </p>
+  </aside>
+</div>

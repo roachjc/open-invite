@@ -1,0 +1,42 @@
+---
+import { randomUUID } from "node:crypto";
+import Shell from "@/layouts/Shell.astro";
+import Texts from "@/components/Texts.astro";
+import { loadApp, readForm } from "@/lib/server/app";
+import { finish } from "@/lib/server/respond";
+import { identity, publicError } from "@/lib/server/http";
+import { getStore } from "@/lib/server/database";
+import { processMessage } from "@/lib/server/messages";
+
+let draft = "";
+let error: string | null = null;
+if (Astro.request.method === "POST") {
+  const data = await readForm(Astro);
+  draft = String(data.get("body") ?? "");
+  // The script supplies a fresh ID per send so retries are deduplicated.
+  const supplied = String(data.get("messageId") ?? "");
+  const messageId = /^[0-9a-f-]{36}$/i.test(supplied) ? supplied : randomUUID();
+  try {
+    const result = await processMessage(
+      getStore(),
+      identity(Astro.cookies),
+      draft,
+      messageId,
+    );
+    return finish(
+      Astro,
+      "/texts",
+      result.planId ? "Your plan is on the board." : null,
+    );
+  } catch (failure) {
+    const { message, status } = publicError(failure);
+    error = message;
+    Astro.response.status = status;
+  }
+}
+const app = loadApp(Astro);
+---
+
+<Shell app={app} view="texts" title="Try a text" home="/texts">
+  <Texts app={app} draft={draft} error={error} />
+</Shell>

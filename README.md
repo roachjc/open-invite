@@ -23,12 +23,12 @@ Run the dev server as above. It listens on all network interfaces. Put the machi
 OPEN_INVITE_DEV_HOSTS=YOUR_TAILSCALE_IP
 ```
 
-Then open `http://YOUR_TAILSCALE_IP:3000` while connected to Tailscale. Replace `YOUR_TAILSCALE_IP` with your device's current Tailscale address. Next.js restricts development scripts to known origins, so an unlisted address can show the loading screen without starting the app. List only the hosts you use, separated by commas. Do not add a wildcard.
+Then open `http://YOUR_TAILSCALE_IP:3000` while connected to Tailscale. Replace `YOUR_TAILSCALE_IP` with your device's current Tailscale address. The Astro dev server answers raw IP addresses but refuses unlisted hostnames, such as a MagicDNS name, with a 403. List only the hosts you use, separated by commas. Do not add a wildcard.
 
 ## Try it
 
 - Browse upcoming plans, plans you're attending, or plans with kids.
-- Open a plan and join. All participants can edit it. Leave without cancelling the plan for the others.
+- Join straight from the board, or open a plan and join. All participants can edit it. Leave without cancelling the plan for the others.
 - On a plan, use **Text everyone** to open a message draft to the other current participants. Use **Copy numbers** to paste their numbers into your messaging app if the group draft does not open correctly. If clipboard access is unavailable, the numbers appear in a selectable field. These actions use the sample numbers in the local preview. Group drafts need testing on real iPhone and Android devices; existing threads and later participant changes stay under your messaging app's control.
 - Share a plan through the form. What, who, where, and when are required.
 - Open **Try a text**, send an example, and answer a follow-up if a required detail is missing.
@@ -62,12 +62,27 @@ npm run test:e2e
 npm run build
 ```
 
-The unit tests cover plan rules, draft conversations, webhook-style replay, and permissions. Hosted schema tests use PGlite, an embedded PostgreSQL, with a small Supabase auth stub. They exercise the actual migration and its row-level policies without Docker. Browser tests run a separate production-preview server on port 3100, using an isolated database in `.data/e2e`. They exercise creation, persistence, shared edits, joining, leaving, notifications, text follow-ups, and mobile layout against that isolated server. They reset only their own sample data.
+The unit tests cover plan rules, draft conversations, webhook-style replay, and permissions. Hosted schema tests use PGlite, an embedded PostgreSQL, with a small Supabase auth stub. They exercise the actual migration and its row-level policies without Docker. Browser tests run a separate production-preview server on port 3100, using an isolated database in `.data/e2e`. They exercise creation, persistence, shared edits, joining, leaving, notifications, text follow-ups, mobile layout, dialog history, background refresh, and use with JavaScript disabled against that isolated server. They reset only their own sample data.
 
 ## Architecture
 
-- `src/app`: Next.js pages and HTTP endpoints.
-- `src/components/open-invite.tsx`: browsing, plan details, forms, circle directory, text simulator, and notification previews.
+The app renders every screen on the server and works without JavaScript. Each view, filter, and dialog has its own URL, and every change is an ordinary HTML form that redirects after posting. The browser receives no framework: one small script (about 4 KB compressed) enhances the server's HTML.
+
+- Links and forms fetch the next page and swap in its markup. An open dialog stays open when the next page shows the same one, and its contents are left alone if they did not change. A background refresh keeps any text being typed. If a change fails, the page returns to what the server last showed.
+- Form submissions skip the redirect round trip. The server renders the destination page directly and reports its address in a response header.
+- Links are prefetched on hover or touch. Each plan on the board carries its dialog in an inert template, so plans open immediately while the server confirms them.
+- Open pages refresh every 15 seconds and on focus. Responses carry ETags, so an unchanged page costs a 304.
+- Script requests receive only the page title and app markup. Full pages inline their stylesheet and icon sprite, so first paint needs no extra round trip. HTML and JSON are compressed with Brotli or gzip.
+
+Files:
+
+- `src/pages`: one Astro page per screen. Each reads the store directly and handles its own form posts. `src/pages/api` keeps the JSON API for tests and integrations.
+- `src/layouts`: the document and app shell, including navigation and the identity switcher.
+- `src/components`: server-rendered views, dialogs, and the icon sprite.
+- `src/client/enhance.ts`: the enhancement script.
+- `src/middleware.ts`: the production fail-closed guard, error pages, ETags, partial responses, and compression.
+- `src/lib/server/app.ts`, `forms.ts`, `format.ts`, `flash.ts`, `respond.ts`: per-request state, form parsing, date formatting, one-time messages, and form-submission responses.
+- `src/lib/server/inspect.ts`: the extraction inspector, shared by its page and `/api/extract`. Inspector runs are kept in the server session.
 - `src/lib/plans.ts`: validation, end-time rules, and notification descriptions.
 - `src/lib/server/database.ts`: local SQLite persistence and plan operations.
 - `src/lib/server/extraction.ts`: example parser and optional OpenAI extraction.
@@ -80,7 +95,7 @@ This is a working local preview. It is not a hosted service ready for real frien
 
 The app still uses local SQLite and development identities. The Supabase migration is prepared and tested, but its hosted adapter, phone authentication, initial-circle import, and durable notification workers are not connected. The Twilio integration has request-validation and guarded sending primitives, but the webhook deliberately returns 503 and nothing dispatches notifications. No live SMS can leave the running preview.
 
-The eventual hosted stack remains Vercel, Supabase, Twilio, and OpenAI. Vercel's ephemeral filesystem cannot host this SQLite database. Connect hosted persistence and authentication before deployment. Provisioning those accounts and registering an SMS sender are separate setup tasks.
+The eventual hosted stack remains Vercel, Supabase, Twilio, and OpenAI. The app currently builds a standalone Node server with `@astrojs/node`. That server does not compress static files, so its stylesheet is inlined; fonts are already compressed. Deploying to Vercel means swapping in the `@astrojs/vercel` adapter and moving inspector sessions to a hosted session driver. Vercel's ephemeral filesystem cannot host this SQLite database. Connect hosted persistence and authentication before deployment. Provisioning those accounts and registering an SMS sender are separate setup tasks.
 
 Production requests fail closed unless `OPEN_INVITE_LOCAL_DEMO=true` is explicitly set. That flag is only for previewing a production build locally. It provides no authentication and must not be used for a public deployment.
 

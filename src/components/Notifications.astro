@@ -1,0 +1,79 @@
+---
+import { ArrowRight, Bell } from "lucide";
+import Icon from "./Icon.astro";
+import { format } from "@/lib/server/format";
+import type { App } from "@/lib/server/app";
+interface Props {
+  app: App;
+}
+const { app } = Astro.props;
+const enabled = app.preferences.enabled;
+---
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Preview only</p>
+    <h1>Notifications</h1>
+    <p class="subtitle">
+      Updates on new plans and plans you're in. No texts are sent from this
+      preview.
+    </p>
+  </div>
+</div>
+<section class="notification-list">
+  <form class="notification-settings" method="post" action="/notifications">
+    <div>
+      <h2>Text notifications</h2>
+      <p id="notification-setting-description">
+        New plans and updates to plans you've joined. You can still browse,
+        share, and join plans when texts are off. This preview does not send
+        real texts.
+      </p>
+    </div>
+    <label class="notification-toggle">
+      <input
+        type="checkbox"
+        role="switch"
+        name="enabled"
+        aria-label="Text notifications"
+        aria-describedby="notification-setting-description"
+        checked={enabled}
+        data-autosubmit
+      />
+      <span data-switch-label>{enabled ? "On" : "Off"}</span>
+    </label>
+    <noscript>
+      <button class="button secondary">Save</button>
+    </noscript>
+  </form>
+  {!app.notices.length ? (
+    <div class="empty-state">
+      <Icon icon={Bell} size={32} strokeWidth={1.2} />
+      <h2>Nothing for you just yet.</h2>
+      <p>Share a plan as another friend to see the notification here.</p>
+      <a class="button secondary" href="/texts">
+        Try a text <Icon icon={ArrowRight} size={15} />
+      </a>
+    </div>
+  ) : (
+    [...app.notices].reverse().map((notice) => (
+      <article class="notification-card">
+        <span class="notice-icon">
+          <Icon icon={Bell} size={17} />
+        </span>
+        <div>
+          <span class="eyebrow">
+            {notice.kind === "new" ? "New plan" : "Plan update"} · Preview
+          </span>
+          <p>{notice.body.replace(/ \/plans\/.*$/, "")}</p>
+          <a class="text-button" href={`/plans/${notice.planId}`}>
+            Open plan <Icon icon={ArrowRight} size={14} />
+          </a>
+        </div>
+        <time datetime={notice.createdAt}>
+          {format(notice.createdAt, app.timezone, "LLL d, h:mm a")}
+        </time>
+      </article>
+    ))
+  )}
+</section>

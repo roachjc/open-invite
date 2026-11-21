@@ -1,0 +1,207 @@
+---
+import {
+  ArrowRight,
+  Check,
+  MapPin,
+  MessageCircle,
+  Plus,
+  TreePine,
+} from "lucide";
+import Avatar from "./Avatar.astro";
+import Icon from "./Icon.astro";
+import PlanDialog from "./PlanDialog.astro";
+import Spinner from "./Spinner.astro";
+import { categoryIcons } from "./icons";
+import { clock, format, groupByDay } from "@/lib/server/format";
+import type { App } from "@/lib/server/app";
+
+export type Filter = "upcoming" | "mine" | "kids";
+interface Props {
+  app: App;
+  filter?: Filter;
+}
+const { app, filter = "upcoming" } = Astro.props;
+const { me } = app;
+const here = filter === "upcoming" ? "/" : `/?filter=${filter}`;
+const visible = app.plans.filter(
+  (plan) =>
+    (filter !== "mine" || plan.participants.includes(me.id)) &&
+    (filter !== "kids" || plan.ageGroups.includes("kids")),
+);
+const tabs = [
+  ["upcoming", "/", "Coming up"],
+  ["mine", "/?filter=mine", "I'm going"],
+  ["kids", "/?filter=kids", "With kids"],
+] as const;
+const mine = app.plans.filter((plan) => plan.participants.includes(me.id));
+---
+
+<div class="page-heading plans-heading">
+  <h1 class="sr-only">Plans</h1>
+  <a class="button primary share-button" href="/plans/new">
+    <Icon icon={Plus} size={17} /> Share a plan
+  </a>
+</div>
+<div class="board-toolbar">
+  <nav class="tabs" aria-label="When to browse">
+    {tabs.map(([value, href, label]) => (
+      <a
+        href={href}
+        class:list={{ selected: filter === value }}
+        aria-current={filter === value ? "page" : undefined}
+      >
+        {label}
+        {value === "mine" && <span>{mine.length}</span>}
+      </a>
+    ))}
+  </nav>
+</div>
+<div class="board-layout">
+  <section class="plans-column" aria-label="Friends' plans">
+    {visible.length === 0 && (
+      <div class="empty-state">
+        <Icon icon={TreePine} size={36} strokeWidth={1} />
+        <h2>
+          {filter === "mine"
+            ? "You haven’t joined a plan yet."
+            : "No plans here yet."}
+        </h2>
+        <p>
+          {filter === "mine"
+            ? "Have a look at what's coming up, or share something you're already doing."
+            : "No plans here just yet. Heading somewhere anyway? Let your friends know."}
+        </p>
+        <a
+          class="button secondary"
+          href={filter === "mine" ? "/" : "/plans/new"}
+        >
+          {filter === "mine" ? "See what's happening" : "Share a plan"}
+          <Icon icon={ArrowRight} size={15} />
+        </a>
+      </div>
+    )}
+    {groupByDay(visible, app.timezone).map((day) => (
+      <section class="day-section">
+        <div class="day-heading">
+          <h2>{day.label}</h2>
+          <span>{day.date}</span>
+        </div>
+        <div class="plan-grid">
+          {day.plans.map((plan) => {
+            const joined = plan.participants.includes(me.id);
+            return (
+              <article class:list={["plan-card", { joined }]}>
+                <a
+                  class="card-open"
+                  href={`/plans/${plan.id}`}
+                  aria-label={`View ${plan.activity}`}
+                >
+                  <span class="plan-time">
+                    <strong>
+                      {format(plan.startsAt, plan.timezone, "h:mm")}
+                      <small>{format(plan.startsAt, plan.timezone, "a")}</small>
+                    </strong>
+                    {!plan.endWasDefault && (
+                      <span>to {clock(plan.endsAt, plan.timezone)}</span>
+                    )}
+                  </span>
+                  <span class="plan-main">
+                    <span class="plan-title">
+                      <span class="activity-icon">
+                        <Icon
+                          icon={categoryIcons[plan.category]}
+                          size={16}
+                          strokeWidth={1.75}
+                        />
+                      </span>
+                      <span>{plan.activity}</span>
+                    </span>
+                    <span class="plan-meta">
+                      <span class="plan-location">
+                        <Icon icon={MapPin} size={13} />
+                        {plan.place}
+                      </span>
+                    </span>
+                    {plan.note && <span class="plan-note">{plan.note}</span>}
+                  </span>
+                  {plan.ageGroups.includes("kids") && (
+                    <span class="company-tag with_kids">With kids</span>
+                  )}
+                </a>
+                <div class="card-footer">
+                  <span class="going-summary">
+                    <span class="avatars">
+                      {[...plan.participants].sort().map((id) => {
+                        const person = app.person(id);
+                        return person && <Avatar person={person} small />;
+                      })}
+                    </span>
+                    <span>{plan.participants.length} going</span>
+                  </span>
+                  {joined ? (
+                    <a class="join-small joined" href={`/plans/${plan.id}`}>
+                      <Icon icon={Check} size={14} /> Going
+                    </a>
+                  ) : (
+                    <form method="post" action={`/plans/${plan.id}`}>
+                      <input type="hidden" name="intent" value="join" />
+                      <input type="hidden" name="return" value={here} />
+                      <button
+                        class="join-small"
+                        aria-label={`Join ${plan.activity}`}
+                      >
+                        <span class="idle-icon">
+                          <Icon icon={Plus} size={14} />
+                        </span>
+                        <Spinner size={14} /> Join
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    ))}
+  </section>
+  {
+    /* Each visible plan's dialog, so it opens without waiting for the network.
+       The script then confirms it against the server's page. */
+    visible.map((plan) => (
+      <template
+        data-dialog={`/plans/${plan.id}`}
+        data-title={`${plan.activity} · Open Invite`}
+      >
+        <PlanDialog app={app} plan={plan} quiet />
+      </template>
+    ))
+  }
+  <aside class="board-aside">
+    <div class="aside-panel">
+      <h2>Heading out?</h2>
+      <p>
+        A ride, a ski day, an hour at the library. Post it and whoever's free
+        can join. No obligation either way.
+      </p>
+      <a class="text-button" href="/texts">
+        <Icon icon={MessageCircle} size={14} /> Or post it by text
+      </a>
+    </div>
+    <div class="aside-panel">
+      <div class="aside-title">
+        <h3>Your circle</h3>
+        <span>{app.people.length}</span>
+      </div>
+      <div class="circle-avatars">
+        {app.people.map((person) => (
+          <Avatar person={person} small />
+        ))}
+      </div>
+      <p>Every plan goes to everyone here.</p>
+      <a class="text-button" href="/circle">
+        See everyone <Icon icon={ArrowRight} size={14} />
+      </a>
+    </div>
+  </aside>
+</div>

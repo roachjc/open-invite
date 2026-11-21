@@ -1,0 +1,29 @@
+---
+import Dialog from "./Dialog.astro";
+import Spinner from "./Spinner.astro";
+import type { App } from "@/lib/server/app";
+interface Props {
+  app: App;
+}
+---
+
+<Dialog
+  id="reset"
+  label="Reset sample data"
+  close="/"
+  flash={Astro.props.app.flash}
+>
+  <h2>Start fresh?</h2>
+  <p class="dialog-intro">
+    This removes the plans, texts, and notification previews you've added
+    locally, then restores the sample circle.
+  </p>
+  <form method="post" action="/reset" class="dialog-footer">
+    <a class="button secondary" href="/" data-close>
+      Keep my changes
+    </a>
+    <button class="button primary">
+      <Spinner /> Reset preview
+    </button>
+  </form>
+</Dialog>

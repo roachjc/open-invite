@@ -1,0 +1,53 @@
+---
+import { MessageCircle, Users } from "lucide";
+import Avatar from "./Avatar.astro";
+import Icon from "./Icon.astro";
+import type { App } from "@/lib/server/app";
+interface Props {
+  app: App;
+}
+const { app } = Astro.props;
+---
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">{app.people.length} people · one circle</p>
+    <h1>The usual people.</h1>
+    <p class="subtitle">Everyone here sees every plan.</p>
+  </div>
+</div>
+<div class="section-banner">
+  <Icon icon={Users} size={18} />
+  <p>One shared circle. Every plan is visible to everyone here.</p>
+  <span>Sample contacts · fictional numbers</span>
+</div>
+<div class="people-grid">
+  {app.people.map((person) => (
+    <article class="person-card">
+      <Avatar person={person} />
+      <div>
+        <h2>
+          {person.name}
+          {person.id === app.me.id && <span>you</span>}
+        </h2>
+        <p>
+          {
+            app.plans.filter((plan) => plan.participants.includes(person.id))
+              .length
+          }{" "}
+          upcoming plans
+        </p>
+      </div>
+      <a
+        href={`sms:${person.phone}`}
+        aria-label={`Text ${person.name} at ${person.phone}`}
+      >
+        <Icon icon={MessageCircle} size={14} /> {person.phone}
+      </a>
+    </article>
+  ))}
+</div>
+<p class="page-footnote">
+  Questions about a plan? Text each other directly. There's no group chat in
+  Open Invite.
+</p>

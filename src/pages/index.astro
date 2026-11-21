@@ -1,0 +1,14 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Board, { type Filter } from "@/components/Board.astro";
+import { loadApp } from "@/lib/server/app";
+
+const app = loadApp(Astro);
+const requested = Astro.url.searchParams.get("filter");
+const filter: Filter =
+  requested === "mine" || requested === "kids" ? requested : "upcoming";
+---
+
+<Shell app={app} view="plans" title="What's happening" home="/">
+  <Board app={app} filter={filter} />
+</Shell>

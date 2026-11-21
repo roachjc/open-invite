@@ -1,0 +1,127 @@
+---
+import { ArrowUpRight, Check } from "lucide";
+import Dialog from "./Dialog.astro";
+import Icon from "./Icon.astro";
+import Spinner from "./Spinner.astro";
+import { zoneLabel } from "@/lib/server/format";
+import type { App } from "@/lib/server/app";
+import type { PlanFormValues } from "@/lib/server/forms";
+import type { Plan } from "@/lib/types";
+
+interface Props {
+  app: App;
+  plan?: Plan;
+  values: PlanFormValues;
+  error?: string | null;
+}
+const { app, plan, values, error } = Astro.props;
+const zone = plan?.timezone ?? app.timezone;
+const close = plan ? `/plans/${plan.id}` : "/";
+---
+
+<Dialog
+  id={plan ? `edit:${plan.id}` : "new"}
+  label={plan ? "Edit plan" : "Share a plan"}
+  close={close}
+  flash={app.flash}
+>
+  <h2>{plan ? "Edit plan" : "Already heading out?"}</h2>
+  <p class="dialog-intro">
+    {plan
+      ? "Anyone going can edit. The others get a heads-up on what changed."
+      : "Post it to the circle. Anyone free can join."}
+  </p>
+  <form
+    method="post"
+    action={plan ? `/plans/${plan.id}/edit` : "/plans/new"}
+    class="plan-form"
+  >
+    {plan && <input type="hidden" name="version" value={plan.version} />}
+    <label>
+      What are you doing?
+      <input
+        name="activity"
+        placeholder="Mountain biking, gravel ride, classic ski…"
+        value={values.activity}
+        required
+        minlength="2"
+        maxlength="100"
+        autofocus
+      />
+    </label>
+    <div class="form-pair">
+      <fieldset class="age-group-fields">
+        <legend>Who's coming?</legend>
+        <label>
+          <input type="checkbox" name="withKids" checked={values.withKids} />
+          With kids
+        </label>
+      </fieldset>
+      <label>
+        Details <span>optional</span>
+        <input
+          name="attendeeDetail"
+          placeholder="With my five-year-old"
+          value={values.attendeeDetail}
+          maxlength="140"
+        />
+      </label>
+    </div>
+    <label>
+      Where?
+      <input
+        name="place"
+        placeholder="Trailhead, ski area, library"
+        value={values.place}
+        required
+        minlength="2"
+        maxlength="160"
+      />
+    </label>
+    <div class="form-pair">
+      <label>
+        When?
+        <input
+          type="datetime-local"
+          name="start"
+          value={values.start}
+          required
+        />
+      </label>
+      <label>
+        Until <span>optional</span>
+        <input type="datetime-local" name="end" value={values.end} />
+      </label>
+    </div>
+    <p class="field-note">
+      Times in {zoneLabel(zone)}. No end time means the plan runs until
+      midnight.
+    </p>
+    <label>
+      Anything else? <span>optional</span>
+      <textarea
+        name="note"
+        rows="2"
+        placeholder="Pace, gear, where to meet…"
+        maxlength="500"
+      >{values.note}</textarea>
+    </label>
+    {error && (
+      <p class="error" role="alert">
+        {error}
+      </p>
+    )}
+    <div class="dialog-footer">
+      <a class="button secondary" href={close} data-close>
+        Cancel
+      </a>
+      <button class="button primary">
+        <span class="idle-icon">
+          <Icon icon={plan ? Check : ArrowUpRight} size={plan ? 16 : 17} />
+        </span>
+        <Spinner />
+        {plan ? "Save changes" : "Share with the circle"}
+      </button>
+    </div>
+  </form>
+</Dialog>

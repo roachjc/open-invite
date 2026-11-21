@@ -1,0 +1,13 @@
+---
+interface Props {
+  label: string;
+  value: unknown;
+}
+const { label, value } = Astro.props;
+---
+
+<pre
+  class="inspection-json"
+  aria-label={label}
+  tabindex="0"
+>{JSON.stringify(value, null, 2)}</pre>

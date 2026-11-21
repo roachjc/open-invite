@@ -1,0 +1,71 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Inspector from "@/components/Inspector.astro";
+import { loadApp, readForm } from "@/lib/server/app";
+import { publicError } from "@/lib/server/http";
+import { ENHANCED_HEADER } from "@/lib/server/respond";
+import { inspectMessage, type InspectionRun } from "@/lib/server/inspect";
+
+const app = loadApp(Astro);
+// Runs live in the server session, per person, so a reload keeps them and
+// nothing is published.
+const key = `inspector:${app.me.id}`;
+let runs =
+  ((await Astro.session?.get(key)) as InspectionRun[] | undefined) ?? [];
+let continueDraft = true;
+let text = "";
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const data = await readForm(Astro);
+  // The script gets the result rendered in place. A session created by this
+  // request would not yet be visible to a rewritten one.
+  const enhanced = Astro.request.headers.has(ENHANCED_HEADER);
+  if (enhanced) Astro.locals.location = "/texts/inspect";
+  if (data.get("intent") === "reset") {
+    Astro.session?.delete(key);
+    runs = [];
+    if (!enhanced) return Astro.redirect("/texts/inspect", 303);
+  } else {
+    text = String(data.get("text") ?? "").trim();
+    continueDraft = !runs.length || data.has("continue");
+    try {
+      if (!text || text.length > 1500)
+        throw new Error("Please use between 1 and 1,500 characters.");
+      const submittedDraft =
+        continueDraft && runs.length ? runs.at(-1)!.result.draft : {};
+      const result = await inspectMessage(app.me, text, submittedDraft);
+      runs = [...runs, { text, submittedDraft, result }].slice(-20);
+      Astro.session?.set(key, runs);
+      text = "";
+      if (!enhanced) return Astro.redirect("/texts/inspect", 303);
+    } catch (failure) {
+      const { message, status } = publicError(failure);
+      error = message;
+      Astro.response.status = status;
+    }
+  }
+}
+const requested = Number(Astro.url.searchParams.get("run"));
+const selected =
+  Number.isInteger(requested) && requested >= 1 && requested <= runs.length
+    ? requested - 1
+    : runs.length - 1;
+---
+
+<Shell
+  app={app}
+  view="texts"
+  title="Inspect extraction"
+  home="/texts/inspect"
+  live={false}
+>
+  <Inspector
+    app={app}
+    runs={runs}
+    selected={selected}
+    continueDraft={continueDraft}
+    text={error ? text : ""}
+    error={error}
+  />
+</Shell>

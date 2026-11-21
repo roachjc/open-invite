@@ -1,0 +1,20 @@
+---
+import { Check, X } from "lucide";
+import Icon from "./Icon.astro";
+interface Props {
+  message: string;
+}
+---
+
+<div class="toast" role="status" data-toast>
+  <Icon icon={Check} size={16} />
+  <span>{Astro.props.message}</span>
+  <button
+    type="button"
+    class="js-only"
+    aria-label="Dismiss message"
+    data-dismiss
+  >
+    <Icon icon={X} size={14} />
+  </button>
+</div>

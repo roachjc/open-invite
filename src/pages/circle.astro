@@ -1,0 +1,10 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Circle from "@/components/Circle.astro";
+import { loadApp } from "@/lib/server/app";
+const app = loadApp(Astro);
+---
+
+<Shell app={app} view="people" title="Our circle" home="/circle">
+  <Circle app={app} />
+</Shell>

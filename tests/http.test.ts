@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkOrigin, localOnly } from "@/lib/server/http";
 afterEach(() => vi.unstubAllEnvs());
 describe("local preview boundaries", () => {
-  it("accepts a real same-origin browser POST when Next binds to 0.0.0.0", () => {
+  it("accepts a real same-origin browser POST when the server binds to 0.0.0.0", () => {
     const request = new Request("http://0.0.0.0:3000/api/plans", {
       headers: {
         host: "localhost:3000",

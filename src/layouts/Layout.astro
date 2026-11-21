@@ -1,0 +1,43 @@
+---
+import { Font } from "astro:assets";
+import Sprite from "@/components/Sprite.astro";
+import Toast from "@/components/Toast.astro";
+import "@/styles/global.css";
+interface Props {
+  title?: string;
+}
+const title = Astro.props.title
+  ? `${Astro.props.title} · Open Invite`
+  : "Open Invite";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta
+      name="description"
+      content="See what your friends are doing. Join if you're free."
+    />
+    <meta name="theme-color" content="#385d43" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <script is:inline>
+      document.documentElement.classList.add("js");
+    </script>
+    <Font cssVariable="--font-sans" preload />
+    <Font cssVariable="--font-mono" />
+    <Font cssVariable="--font-brand" preload />
+  </head>
+  <body>
+    <Sprite />
+    <slot />
+    {/* The server's partial responses end the app at this template. */}
+    <template id="toast-template">
+      <Toast message="" />
+    </template>
+    <script>
+      import "@/client/enhance";
+    </script>
+  </body>
+</html>

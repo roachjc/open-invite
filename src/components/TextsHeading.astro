@@ -1,0 +1,29 @@
+---
+interface Props {
+  mode: "conversation" | "inspect";
+}
+const { mode } = Astro.props;
+---
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Text simulator</p>
+    <h1>Post by text.</h1>
+    <p class="subtitle">
+      {mode === "inspect"
+        ? "Inspect the request, response, and plan model without publishing."
+        : "One sentence: what, who, where, when. Complete plans go to the board."}
+    </p>
+  </div>
+</div>
+<nav class="simulator-modes" aria-label="Simulator mode">
+  <a href="/texts" aria-current={mode === "conversation" ? "page" : undefined}>
+    Conversation
+  </a>
+  <a
+    href="/texts/inspect"
+    aria-current={mode === "inspect" ? "page" : undefined}
+  >
+    Inspect extraction
+  </a>
+</nav>

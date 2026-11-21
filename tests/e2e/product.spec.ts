@@ -87,20 +87,20 @@ test("browse, join, edit as an equal participant, and leave without cancelling t
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "Share a plan", exact: true }),
+    page.getByRole("link", { name: "Share a plan", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "What are we doing?" }),
   ).toHaveCount(0);
   await expect(page.locator(".page-heading .eyebrow")).toHaveCount(0);
-  await page.getByRole("button", { name: "With kids", exact: true }).click();
+  await page.getByRole("link", { name: "With kids", exact: true }).click();
   await expect(page.locator(".plan-card .company-tag")).toHaveText([
     "With kids",
     "With kids",
   ]);
-  await page.getByRole("button", { name: "Coming up", exact: true }).click();
+  await page.getByRole("link", { name: "Coming up", exact: true }).click();
   await page
-    .getByRole("button", {
+    .getByRole("link", {
       name: "View Mountain biking at Chickity",
       exact: true,
     })
@@ -110,7 +110,7 @@ test("browse, join, edit as an equal participant, and leave without cancelling t
   await expect(page.getByText("You're going. See you there.")).toBeVisible();
   await page.reload();
   await expect(page.getByText("Jon (you)", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Edit plan", exact: true }).click();
+  await page.getByRole("link", { name: "Edit plan", exact: true }).click();
   await page
     .getByLabel("Where?", { exact: true })
     .fill("Chickity north entrance");
@@ -133,7 +133,7 @@ test("share a plan from the form, preserve it across reloads, and default its en
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Share a plan", exact: true }).click();
+  await page.getByRole("link", { name: "Share a plan", exact: true }).click();
   await page
     .getByLabel("What are you doing?", { exact: true })
     .fill("An evening walk");
@@ -173,19 +173,19 @@ test("text follow-ups hold a draft until all four required details are present",
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Try a text", exact: true }).click();
+  await page.getByRole("link", { name: "Try a text", exact: true }).click();
   await page
     .getByLabel("Your text to the service")
     .fill("Mountain biking at Chickity");
   await page.getByRole("button", { name: "Send text" }).click();
   await expect(page.getByText(/Before I share it, tell me when/)).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "View plan", exact: true }),
+    page.getByRole("link", { name: "View plan", exact: true }),
   ).toHaveCount(0);
   await page.getByLabel("Your text to the service").fill("tomorrow at noon");
   await page.getByRole("button", { name: "Send text" }).click();
   await expect(page.getByText(/Shared with your circle/)).toBeVisible();
-  await page.getByRole("button", { name: "View plan", exact: true }).click();
+  await page.getByRole("link", { name: "View plan", exact: true }).click();
   await expect(
     page
       .getByRole("dialog")
@@ -193,7 +193,7 @@ test("text follow-ups hold a draft until all four required details are present",
   ).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByLabel("Preview as a friend").selectOption("eric");
-  await page.getByRole("button", { name: /^Notifications/ }).click();
+  await page.getByRole("link", { name: /^Notifications/ }).click();
   await expect(
     page.getByText(/Mountain biking at Chickity.*Jon going/),
   ).toBeVisible();
@@ -205,7 +205,7 @@ test("mobile browsing fits the screen and supports joining", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "Share a plan", exact: true }),
+    page.getByRole("link", { name: "Share a plan", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "What are we doing?" }),
@@ -217,7 +217,7 @@ test("mobile browsing fits the screen and supports joining", async ({
     ),
   ).toBe(true);
   await page
-    .getByRole("button", {
+    .getByRole("link", {
       name: "View Mountain biking at Chickity",
       exact: true,
     })
@@ -225,7 +225,7 @@ test("mobile browsing fits the screen and supports joining", async ({
   await page.getByRole("button", { name: "I'm coming", exact: true }).click();
   await expect(page.getByText("You're going. See you there.")).toBeVisible();
   await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByRole("button", { name: "Our circle", exact: false }).click();
+  await page.getByRole("link", { name: "Our circle", exact: false }).click();
   await expect(
     page.getByRole("heading", { name: "The usual people.", exact: true }),
   ).toBeVisible();
@@ -236,13 +236,14 @@ test("notification switch persists per person and controls new previews", async 
   request,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Notifications/ }).click();
+  await page.getByRole("link", { name: /Notifications/ }).click();
   const toggle = page.getByRole("switch", { name: "Text notifications" });
   await expect(toggle).toBeChecked();
   await toggle.click();
   await expect(toggle).not.toBeChecked();
+  await expect(page.getByText("Text notifications turned off.")).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: /Notifications/ }).click();
+  await page.getByRole("link", { name: /Notifications/ }).click();
   await expect(toggle).not.toBeChecked();
   const details = {
     activity: "Mountain biking",
@@ -264,6 +265,7 @@ test("notification switch persists per person and controls new previews", async 
   expect(muted.notificationPreferences.enabled).toBe(false);
   await toggle.click();
   await expect(toggle).toBeChecked();
+  await expect(page.getByText("Text notifications turned on.")).toBeVisible();
   await request.post("/api/demo/identity", { data: { personId: "eric" } });
   const eric = await (await request.get("/api/state")).json();
   expect(eric.notificationPreferences.enabled).toBe(true);
@@ -322,9 +324,9 @@ test("inspector shows requests, responses and a plan model, supports follow-ups,
 }) => {
   const before = await (await request.get("/api/state")).json();
   await page.goto("/");
-  await page.getByRole("button", { name: "Try a text", exact: true }).click();
+  await page.getByRole("link", { name: "Try a text", exact: true }).click();
   await page
-    .getByRole("button", { name: "Inspect extraction", exact: true })
+    .getByRole("link", { name: "Inspect extraction", exact: true })
     .click();
   await page
     .getByLabel("Message to inspect")
@@ -356,7 +358,7 @@ test("inspector shows requests, responses and a plan model, supports follow-ups,
     '"place": "Chickadee"',
   );
   const history = page.getByRole("navigation", { name: "Inspection runs" });
-  await history.getByRole("button").first().click();
+  await history.getByRole("link").first().click();
   await expect(page.getByRole("status")).toContainText("Missing: startsAt");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
@@ -377,4 +379,115 @@ test("inspector shows requests, responses and a plan model, supports follow-ups,
   expect(after.plans).toEqual(before.plans);
   expect(after.notices).toEqual(before.notices);
   expect(after.messages).toEqual(before.messages);
+});
+
+test.describe("without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("plans render on the server and forms work", async ({ page }) => {
+    await page.goto("/");
+    await expect(
+      page.getByRole("link", { name: "View Mountain biking at Chickity" }),
+    ).toBeVisible();
+    await page
+      .getByRole("link", { name: "View Mountain biking at Chickity" })
+      .click();
+    await expect(page).toHaveURL(/\/plans\/chickity-ride$/);
+    await page.getByRole("button", { name: "I'm coming", exact: true }).click();
+    await expect(page.getByText("Jon (you)", { exact: true })).toBeVisible();
+    await expect(page.getByText("You're going. See you there.")).toBeVisible();
+    await page.goto("/texts");
+    await page
+      .getByLabel("Your text to the service")
+      .fill("Mountain biking at Chickity");
+    await page.getByRole("button", { name: "Send text" }).click();
+    await expect(
+      page.getByText(/Before I share it, tell me when/),
+    ).toBeVisible();
+  });
+});
+
+test("join from the board in one tap and stay on the filtered list", async ({
+  page,
+}) => {
+  await page.goto("/?filter=kids");
+  const card = page.locator(".plan-card").first();
+  const title = await card.locator(".plan-title").innerText();
+  await card.getByRole("button", { name: `Join ${title}` }).click();
+  await expect(page.getByRole("status")).toContainText("You're going");
+  await expect(page).toHaveURL(/\?filter=kids$/);
+  await expect(card.getByRole("link", { name: "Going" })).toBeVisible();
+});
+
+test("dialogs close back to the page they opened from, including with Escape", async ({
+  page,
+}) => {
+  await page.goto("/notifications");
+  await page.getByRole("link", { name: "What's happening" }).click();
+  await page
+    .getByRole("link", { name: "View Mountain biking at Chickity" })
+    .click();
+  await expect(page).toHaveURL(/\/plans\/chickity-ride$/);
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/notifications$/);
+  await expect(
+    page.getByRole("heading", { name: "Notifications", exact: true }),
+  ).toBeVisible();
+});
+
+test("open pages pick up changes from elsewhere and keep an unsent draft", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/texts");
+  const compose = page.getByLabel("Your text to the service");
+  await compose.fill("Half-written plan");
+  // Another device sends a text as the same person.
+  await request.post("/api/messages", {
+    data: {
+      body: "Mountain biking at Chickity",
+      messageId: crypto.randomUUID(),
+    },
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByText(/Before I share it, tell me when/)).toBeVisible();
+  await expect(compose).toHaveValue("Half-written plan");
+  await expect(compose).toBeFocused();
+});
+
+test("a failed change puts the page back the way the server last showed it", async ({
+  page,
+}) => {
+  await page.goto("/notifications");
+  const toggle = page.getByRole("switch", { name: "Text notifications" });
+  await page.route("**/notifications", (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await toggle.click();
+  await expect(page.getByText(/Couldn't reach Open Invite/)).toBeVisible();
+  await expect(toggle).toBeChecked();
+  await expect(page.locator(".notification-toggle")).toContainText("On");
+});
+
+test("a refresh behind an open dialog leaves the dialog alone", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/plans/chickity-ride");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Copy numbers" }).click();
+  const numbers = dialog.getByLabel("Participant numbers");
+  await numbers.focus();
+  // Someone joins a different plan, which changes the board behind the dialog.
+  await request.post("/api/demo/identity", { data: { personId: "eric" } });
+  await request.post("/api/plans/gravel-ride", { data: { action: "join" } });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    page.locator(".plan-card", { hasText: "Gravel ride" }).getByText("2 going"),
+  ).toHaveCount(1);
+  await expect(numbers).toBeVisible();
+  await expect(numbers).toBeFocused();
 });

@@ -10,8 +10,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run build && npm run start -- --port 3100",
+    command: "npm run build && npm run start",
     env: {
+      PORT: "3100",
       OPEN_INVITE_LOCAL_DEMO: "true",
       OPEN_INVITE_DATA_DIR: join(process.cwd(), ".data", "e2e"),
       OPENAI_API_KEY: "",

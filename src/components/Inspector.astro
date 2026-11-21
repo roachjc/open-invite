@@ -1,0 +1,204 @@
+---
+import { ArrowRight, RotateCcw } from "lucide";
+import Icon from "./Icon.astro";
+import Json from "./Json.astro";
+import Spinner from "./Spinner.astro";
+import TextsHeading from "./TextsHeading.astro";
+import type { App } from "@/lib/server/app";
+import type { InspectionRun } from "@/lib/server/inspect";
+
+interface Props {
+  app: App;
+  runs: InspectionRun[];
+  selected: number;
+  continueDraft: boolean;
+  text?: string;
+  error?: string | null;
+}
+const { app, runs, selected, continueDraft, text = "", error } = Astro.props;
+const active = runs[selected];
+const examples = [
+  "Mountain biking at Chickadee in 30 minutes for two hours, no kids",
+  "Taking my five-year-old cross-country skiing tomorrow at 10am",
+  "Going skiing tomorrow, everyone welcome",
+  ...(runs.length ? ["No kids"] : []),
+];
+const result = active?.result;
+const parsed = (result?.trace.response as { output_parsed?: unknown } | null)
+  ?.output_parsed;
+---
+
+<TextsHeading mode="inspect" />
+<section class="extraction-inspector" aria-label="Extraction inspector">
+  <div class="inspection-intro">
+    <div>
+      <h2>See how a text becomes a plan.</h2>
+      <p>
+        Testing as {app.me.name}. Nothing here publishes a plan or sends a
+        notification. Each AI run uses the API.
+      </p>
+    </div>
+    <form method="post" action="/texts/inspect">
+      <button
+        class="button secondary"
+        name="intent"
+        value="reset"
+        disabled={!runs.length}
+      >
+        <Icon icon={RotateCcw} size={15} /> Start over
+      </button>
+    </form>
+  </div>
+  <form class="inspection-compose" method="post" action="/texts/inspect">
+    <input type="hidden" name="intent" value="inspect" />
+    <label for="inspection-text">Message to inspect</label>
+    <textarea
+      id="inspection-text"
+      name="text"
+      rows="3"
+      maxlength="1500"
+      required
+      placeholder="Describe an outing, or answer a missing-detail question…"
+    >{text}</textarea>
+    <div class="inspection-controls">
+      <label class="inspection-followup">
+        <input
+          type="checkbox"
+          name="continue"
+          checked={continueDraft}
+          disabled={!runs.length}
+        />
+        Continue the latest draft
+      </label>
+      <button
+        type="submit"
+        class="button primary"
+        data-requires="inspection-text"
+      >
+        <span class="idle-icon">
+          <Icon icon={ArrowRight} size={16} />
+        </span>
+        <Spinner />
+        Inspect message
+      </button>
+    </div>
+    <p class="field-note">
+      Follow-ups use the latest successful draft, even when you are viewing an
+      older run. Uncheck to test a separate plan.
+    </p>
+  </form>
+  <div class="inspection-examples js-only" aria-label="Inspection examples">
+    {examples.map((example) => (
+      <button type="button" data-fill="inspection-text" value={example}>
+        {example}
+      </button>
+    ))}
+  </div>
+  {error && (
+    <p class="error" role="alert">
+      {error}
+    </p>
+  )}
+  {runs.length > 0 && (
+    <nav class="inspection-history" aria-label="Inspection runs">
+      {runs.map((run, index) => (
+        <a
+          href={`/texts/inspect?run=${index + 1}`}
+          aria-current={index === selected ? "true" : undefined}
+        >
+          {index + 1}. {run.text}
+        </a>
+      ))}
+    </nav>
+  )}
+  {active && result ? (
+    <>
+      <p class="inspection-summary" role="status">
+        {result.parser === "openai" ? "OpenAI" : "Offline example parser"} ·{" "}
+        {(result.trace.elapsedMs / 1000).toFixed(2)} seconds ·{" "}
+        {result.missingFields.length
+          ? `Missing: ${result.missingFields.join(", ")}`
+          : result.validationError
+            ? "Plan needs correction"
+            : "Plan is complete, not published"}
+      </p>
+      <div class="inspection-grid">
+        <article class="inspection-panel">
+          <h3>1. Request</h3>
+          <p>The message and draft sent by the simulator.</p>
+          <Json
+            label="Simulator request JSON"
+            value={{ text: active.text, draft: active.submittedDraft }}
+          />
+          <details>
+            <summary>Full OpenAI request, including prompt and schema</summary>
+            {result.trace.request ? (
+              <Json label="OpenAI request JSON" value={result.trace.request} />
+            ) : (
+              <p>
+                No OpenAI request. Configure an API key to use AI extraction.
+              </p>
+            )}
+          </details>
+        </article>
+        <article class="inspection-panel">
+          <h3>2. Response</h3>
+          <p>
+            The structured fields returned by the model, followed by the
+            response output and usage.
+          </p>
+          {result.trace.response ? (
+            <>
+              <Json label="AI structured output JSON" value={parsed} />
+              <details>
+                <summary>OpenAI response output and usage</summary>
+                <Json
+                  label="OpenAI response JSON"
+                  value={result.trace.response}
+                />
+              </details>
+            </>
+          ) : (
+            <p>The example parser runs locally and has no AI response.</p>
+          )}
+          <details>
+            <summary>Normalized changes from this message</summary>
+            <Json label="Normalized changes JSON" value={result.changes} />
+          </details>
+        </article>
+        <article class="inspection-panel inspection-plan">
+          <h3>3. Our plan model</h3>
+          <p>
+            Non-null fields merge into the draft. Unspecified age groups default
+            to adults. Follow-ups keep existing age groups. Times convert to
+            UTC. A complete plan without an end time ends at local midnight. No
+            plan ID is assigned here.
+          </p>
+          {result.validationError && (
+            <p class="error">{result.validationError}</p>
+          )}
+          {result.missingFields.length > 0 && (
+            <p class="inspection-missing">
+              Still needed: {result.missingFields.join(", ")}. Type a follow-up
+              above to complete this draft.
+            </p>
+          )}
+          <Json
+            label="Plan model JSON"
+            value={result.planPreview || result.draft}
+          />
+          <details>
+            <summary>Merged draft before plan validation</summary>
+            <Json label="Merged draft JSON" value={result.draft} />
+          </details>
+        </article>
+      </div>
+    </>
+  ) : (
+    <div class="inspection-empty">
+      <p>
+        Enter a message or choose an example, then inspect it to see each step.
+      </p>
+    </div>
+  )}
+</section>

@@ -1,0 +1,30 @@
+---
+import Shell from "@/layouts/Shell.astro";
+import Board from "@/components/Board.astro";
+import ResetDialog from "@/components/ResetDialog.astro";
+import { loadApp, readForm } from "@/lib/server/app";
+import { finish } from "@/lib/server/respond";
+import { localOnly } from "@/lib/server/http";
+import { getStore } from "@/lib/server/database";
+
+if (Astro.request.method === "POST") {
+  localOnly();
+  await readForm(Astro);
+  getStore().reset();
+  return finish(Astro, "/", "Sample circle restored.");
+}
+const app = loadApp(Astro);
+---
+
+<Shell
+  app={app}
+  view="plans"
+  title="Reset sample data"
+  home="/"
+  live={false}
+  transient
+  hasDialog
+>
+  <Board app={app} />
+  <ResetDialog slot="dialog" app={app} />
+</Shell>

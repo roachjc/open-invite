@@ -1,0 +1,13 @@
+---
+import { sprite } from "./icons";
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+  {sprite.map(({ id, node }) => (
+    <symbol id={id} viewBox="0 0 24 24">
+      {node.map(([Tag, attrs]) => (
+        <Tag {...attrs} />
+      ))}
+    </symbol>
+  ))}
+</svg>
